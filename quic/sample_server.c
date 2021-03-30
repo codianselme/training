@@ -1,14 +1,52 @@
+/*
+* Author: Christian Huitema
+* Copyright (c) 2020, Private Octopus, Inc.
+* All rights reserved.
+*
+* Permission to use, copy, modify, and distribute this software for any
+* purpose with or without fee is hereby granted, provided that the above
+* copyright notice and this permission notice appear in all copies.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+* ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+* WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+* DISCLAIMED. IN NO EVENT SHALL Private Octopus, Inc. BE LIABLE FOR ANY
+* DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+* LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+* ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 
-#include <stdlib.h>
-#include <string.h>
+/* The "sample" project builds a simple file transfer program that can be
+ * instantiated in client or server mode. The "sample_server" implements
+ * the server components of the sample application. 
+ *
+ * Developing the server requires two main components:
+ *  - the server "callback" that implements the server side of the
+ *    application protocol, managing a server side application context
+ *    for each connection.
+ *  - the server loop, that reads messages on the socket, submits them
+ *    to the Quic context, let the server prepare messages, and send
+ *    them on the appropriate socket.
+ *
+ * The Sample Server uses the "qlog" option to produce Quic Logs as defined
+ * in https://datatracker.ietf.org/doc/draft-marx-qlog-event-definitions-quic-h3/.
+ * This is an optional feature, which requires linking with the "loglib" library,
+ * and using the picoquic_set_qlog() API defined in "autoqlog.h". . When a connection
+ * completes, the code saves the log as a file named after the Initial Connection
+ * ID (in hexa), with the suffix ".server.qlog".
+ */
+
 #include <stdint.h>
 #include <stdio.h>
 #include <picoquic.h>
 #include <picosocks.h>
 #include <picoquic_utils.h>
 #include <autoqlog.h>
+#include "picoquic_sample.h"
 #include "picoquic_packet_loop.h"
-#include "server.h"
 
 /* Server context and callback management:
  *
@@ -384,16 +422,4 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
     }
 
     return ret;
-}
-
-
-
-int main(int argc, char** argv)
-{
-    int server_port = 4433;
-    char* server_cert = "certs/cert.pem";
-    char* server_key = "certs/key.pem";
-    char* folder = "server_files";
-
-    picoquic_sample_server(server_port, server_cert, server_key, folder);
 }
