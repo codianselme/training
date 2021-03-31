@@ -56,7 +56,7 @@
 #define socklen_t int
 #endif
 /* clang-format on */
-#else /* Linux */
+#else /* Linux, FreeBSD */
 
 #include "getopt.h"
 #include <stdint.h>
@@ -67,6 +67,10 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#ifndef SOL_IPV6 /* required on FreeBSD */
+#define SOL_IPV6 IPPROTO_IPV6
+#endif
 
 #ifndef __USE_XOPEN2K
 #define __USE_XOPEN2K
@@ -135,10 +139,11 @@ typedef struct st_picoquic_recvmsg_async_ctx_t {
     size_t udp_coalesced_size;
     int nb_immediate_receive;
     int bytes_recv;
+    int so_sndbuf;
+    int so_rcvbuf;
     unsigned int is_started : 1;
     unsigned int supports_udp_send_coalesced : 1;
     unsigned int supports_udp_recv_coalesced : 1;
-
 } picoquic_recvmsg_async_ctx_t;
 
 //

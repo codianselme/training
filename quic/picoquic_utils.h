@@ -148,7 +148,7 @@ FILE * picoquic_file_close(FILE * F);
 int picoquic_file_delete(char const* file_name, int* last_err);
 
 /* Skip and decoding functions */
-const uint8_t* picoquic_frames_fixed_skip(const uint8_t * bytes, const uint8_t * bytes_max, size_t size);
+const uint8_t* picoquic_frames_fixed_skip(const uint8_t * bytes, const uint8_t * bytes_max, uint64_t size);
 const uint8_t* picoquic_frames_varint_skip(const uint8_t * bytes, const uint8_t * bytes_max);
 const uint8_t* picoquic_frames_varint_decode(const uint8_t * bytes, const uint8_t * bytes_max, uint64_t * n64);
 const uint8_t* picoquic_frames_varlen_decode(const uint8_t * bytes, const uint8_t * bytes_max, size_t * n);
@@ -159,7 +159,7 @@ const uint8_t* picoquic_frames_uint64_decode(const uint8_t * bytes, const uint8_
 const uint8_t* picoquic_frames_length_data_skip(const uint8_t * bytes, const uint8_t * bytes_max);
 const uint8_t* picoquic_frames_cid_decode(const uint8_t * bytes, const uint8_t * bytes_max, picoquic_connection_id_t * cid);
 
-#define VARINT_LEN(bytes) ((size_t)1 << (((bytes)[0] & 0xC0) >> 6))
+#define VARINT_LEN(bytes) ((uint8_t)1 << ((bytes[0] >> 6)&3))
 
 /* Encoding functions of the form uint8_t * picoquic_frame_XXX_encode(uint8_t * bytes, uint8_t * bytes-max, ...)
  */
@@ -264,6 +264,8 @@ typedef struct st_picoquictest_sim_link_t {
     uint64_t bucket_max;
     double bucket_current;
     uint64_t bucket_arrival_last;
+    /* Variable for multipath simulation */
+    int is_switched_off;
 } picoquictest_sim_link_t;
 
 picoquictest_sim_link_t* picoquictest_sim_link_create(double data_rate_in_gps,

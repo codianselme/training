@@ -94,7 +94,8 @@ extern "C" {
 #define PICOQUIC_ERROR_REPEAT_TIMEOUT (PICOQUIC_ERROR_CLASS + 52)
 #define PICOQUIC_ERROR_HANDSHAKE_TIMEOUT (PICOQUIC_ERROR_CLASS + 53)
 #define PICOQUIC_ERROR_SOCKET_ERROR (PICOQUIC_ERROR_CLASS + 54)
-#define PICOQUIC_ERROR_VERSION_NEGOTIATION (PICOQUIC_ERROR_CLASS + 54)
+#define PICOQUIC_ERROR_VERSION_NEGOTIATION (PICOQUIC_ERROR_CLASS + 55)
+#define PICOQUIC_ERROR_PACKET_TOO_LONG (PICOQUIC_ERROR_CLASS + 56)
 
 /*
  * Protocol errors defined in the QUIC spec
@@ -250,6 +251,8 @@ typedef struct st_picoquic_tp_t {
     int enable_time_stamp; /* (x&1) want, (x&2) can */
     uint64_t min_ack_delay;
     int do_grease_quic_bit;
+    int enable_multipath;
+    int enable_simple_multipath;
 } picoquic_tp_t;
 
 /*
@@ -499,8 +502,9 @@ void picoquic_set_null_verifier(picoquic_quic_t* quic);
 int picoquic_set_tls_key(picoquic_quic_t* quic, const uint8_t* data, size_t len);
 
 /* Set the verify certificate callback and context. */
-int picoquic_set_verify_certificate_callback(picoquic_quic_t* quic, picoquic_verify_certificate_cb_fn cb, void* ctx,
-                                             picoquic_free_verify_certificate_ctx free_fn);
+typedef struct st_ptls_verify_certificate_t ptls_verify_certificate_t;
+int picoquic_set_verify_certificate_callback(picoquic_quic_t* quic, 
+    ptls_verify_certificate_t * cb, picoquic_free_verify_certificate_ctx free_fn);
 
 /* Set client authentication in TLS (if enabled, client is required to send certificates). */
 void picoquic_set_client_authentication(picoquic_quic_t* quic, int client_authentication);
@@ -513,6 +517,9 @@ void picoquic_set_default_spinbit_policy(picoquic_quic_t * quic, picoquic_spinbi
 
 /* Set default loss bit policy for the context */
 void picoquic_set_default_lossbit_policy(picoquic_quic_t* quic, picoquic_lossbit_version_enum default_lossbit_policy);
+
+/* Set the multipath option for the context */
+void picoquic_set_default_multipath_option(picoquic_quic_t* quic, int multipath_option);
 
 /* Set the length of a crypto epoch -- force rotation after that many packets sent */
 void picoquic_set_default_crypto_epoch_length(picoquic_quic_t* quic, uint64_t crypto_epoch_length_max);
@@ -540,11 +547,27 @@ int picoquic_save_retry_tokens(picoquic_quic_t* quic, char const* token_store_fi
  * Value must be compatible with what the cnx_id_callback() expects on a server */
 int picoquic_set_default_connection_id_length(picoquic_quic_t* quic, uint8_t cid_length);
 
+void picoquic_set_default_connection_id_ttl(picoquic_quic_t* quic, uint64_t ttl_usec);
+
+uint64_t picoquic_get_default_connection_id_ttl(picoquic_quic_t* quic);
+
+/* Setting the max mtu that can be found or tried using path MTU discovery.*/
 void picoquic_set_mtu_max(picoquic_quic_t* quic, uint32_t mtu_max);
 
+/* Set the ALPN function used to verify incoming ALPN */
 void picoquic_set_alpn_select_fn(picoquic_quic_t* quic, picoquic_alpn_select_fn alpn_select_fn);
 
+/* Set the default callback function for new connections.
+ * This must be defined for every server implementation.
+ */
 void picoquic_set_default_callback(picoquic_quic_t * quic, picoquic_stream_data_cb_fn callback_fn, void * callback_ctx);
+
+/* Set the minimum interval between consecutive stateless reset packets.
+ * This limits the potential blowback of stateless reset packets when nder DoS attacks.
+ * A value of zero will set no interval.
+ * Default to PICOQUIC_MICROSEC_STATELESS_RESET_INTERVAL_DEFAULT
+ */
+void picoquic_set_default_stateless_reset_min_interval(picoquic_quic_t* quic, uint64_t min_interval_usec);
 
 /* Set and get the maximum number of simultaneously logged connections.
 * If that number is too high, the maximum number of open files will be hit 
@@ -583,6 +606,9 @@ picoquic_quic_t* picoquic_get_quic_ctx(picoquic_cnx_t* cnx);
 picoquic_cnx_t* picoquic_get_first_cnx(picoquic_quic_t* quic);
 picoquic_cnx_t* picoquic_get_next_cnx(picoquic_cnx_t* cnx);
 int64_t picoquic_get_next_wake_delay(picoquic_quic_t* quic,
+    uint64_t current_time,
+    int64_t delay_max);
+int64_t picoquic_get_wake_delay(picoquic_cnx_t* cnx,
     uint64_t current_time,
     int64_t delay_max);
 picoquic_cnx_t* picoquic_get_earliest_cnx_to_wake(picoquic_quic_t* quic, uint64_t max_wake_time);

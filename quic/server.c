@@ -1,55 +1,14 @@
-
-#include <stdlib.h>
-#include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <picoquic.h>
 #include <picosocks.h>
 #include <picoquic_utils.h>
 #include <autoqlog.h>
+//#include "picoquic_sample.h"
 #include "picoquic_packet_loop.h"
 #include "server.h"
 
-/* Server context and callback management:
- *
- * The server side application context is created for each new connection,
- * and is freed when the connection is closed. It contains a list of
- * server side stream contexts, one for each stream open on the
- * connection. Each stream context includes:
- *  - description of the stream state:
- *      name_read or not, FILE open or not, stream reset or not,
- *      stream finished or not.
- *  - the number of file name bytes already read.
- *  - the name of the file requested by the client.
- *  - the FILE pointer for reading the data.
- * Server side stream context is created when the client starts the
- * stream. It is closed when the file transmission
- * is finished, or when the stream is abandoned.
- *
- * The server side callback is a large switch statement, with one entry
- * for each of the call back events.
- */
 
-typedef struct st_sample_server_stream_ctx_t {
-    struct st_sample_server_stream_ctx_t* next_stream;
-    struct st_sample_server_stream_ctx_t* previous_stream;
-    uint64_t stream_id;
-    FILE* F;
-    uint8_t file_name[256];
-    size_t name_length;
-    size_t file_length;
-    size_t file_sent;
-    unsigned int is_name_read : 1;
-    unsigned int is_stream_reset : 1;
-    unsigned int is_stream_finished : 1;
-} sample_server_stream_ctx_t;
-
-typedef struct st_sample_server_ctx_t {
-    char const* default_dir;
-    size_t default_dir_len;
-    sample_server_stream_ctx_t* first_stream;
-    sample_server_stream_ctx_t* last_stream;
-} sample_server_ctx_t;
 
 sample_server_stream_ctx_t * sample_server_create_stream_context(sample_server_ctx_t* server_ctx, uint64_t stream_id)
 {
@@ -372,7 +331,7 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
 
     /* Wait for packets */
     if (ret == 0) {
-        ret = picoquic_packet_loop(quic, server_port, 0, 0, NULL, NULL);
+        ret = picoquic_packet_loop(quic, server_port, 0, 0, 0, NULL, NULL);
     }
 
     /* And finish. */
@@ -387,13 +346,24 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
 }
 
 
+int get_port(char const* port_arg)
+{
+    int server_port = atoi(port_arg);
+    if (server_port <= 0) 
+    {
+        fprintf(stderr, "Invalid port: %s\n", port_arg);
+    }
+    return server_port;
+}
+
 
 int main(int argc, char** argv)
 {
-    int server_port = 4433;
-    char* server_cert = "certs/cert.pem";
-    char* server_key = "certs/key.pem";
+    //int server_port = 4433;
+    char* server_cert = "certs/ca-cert.pem";
+    char* server_key = "certs/ca-key.pem";
     char* folder = "server_files";
 
+    int server_port = get_port(argv[1]);
     picoquic_sample_server(server_port, server_cert, server_key, folder);
 }
