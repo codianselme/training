@@ -4,7 +4,6 @@
 #include <picosocks.h>
 #include <picoquic_utils.h>
 #include <autoqlog.h>
-//#include "picoquic_sample.h"
 #include "picoquic_packet_loop.h"
 #include "server.h"
 
@@ -281,17 +280,18 @@ int sample_server_callback(picoquic_cnx_t* cnx,
     return ret;
 }
 
-/* Server loop setup:
- * - Create the QUIC context.
- * - Open the sockets
- * - On a forever loop:
- *     - get the next wakeup time
- *     - wait for arrival of message on sockets until that time
- *     - if a message arrives, process it.
- *     - else, check whether there is something to send.
- *       if there is, send it.
- * - The loop breaks if the socket return an error. 
+/* Configuration de la boucle du serveur :
+ * - Créer le contexte QUIC.
+ * - Ouvrir les sockets
+ * - Sur une boucle éternelle :
+ * - obtenir l'heure du prochain réveil
+ * - attendre l'arrivée d'un message sur les sockets jusqu'à ce moment-là
+ * - si un message arrive, le traiter.
+ * - sinon, vérifier s'il y a quelque chose à envoyer.
+ * Si c'est le cas, l'envoyer.
+ * - La boucle s'interrompt si le socket renvoie une erreur. 
  */
+
 
 int picoquic_sample_server(int server_port, const char* server_cert, const char* server_key, const char* default_dir)
 {
@@ -305,7 +305,7 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
     default_context.default_dir = default_dir;
     default_context.default_dir_len = strlen(default_dir);
 
-    printf("Starting Picoquic Sample server on port %d\n", server_port);
+    printf("Démarrage du serveur Picoquic sur le port %d\n", server_port);
 
     /* Create the QUIC context for the server */
     current_time = picoquic_current_time();
@@ -314,7 +314,7 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
         sample_server_callback, &default_context, NULL, NULL, NULL, current_time, NULL, NULL, NULL, 0);
 
     if (quic == NULL) {
-        fprintf(stderr, "Could not create server context\n");
+        fprintf(stderr, "Impossible de créer le contexte du serveur \n");
         ret = -1;
     }
     else {
@@ -335,7 +335,7 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
     }
 
     /* And finish. */
-    printf("Server exit, ret = %d\n", ret);
+    printf("Fermeture du serveur, ret = %d\n", ret);
 
     /* Clean up */
     if (quic != NULL) {
@@ -351,7 +351,7 @@ int get_port(char const* port_arg)
     int server_port = atoi(port_arg);
     if (server_port <= 0) 
     {
-        fprintf(stderr, "Invalid port: %s\n", port_arg);
+        fprintf(stderr, "Port invalide : %s\n", port_arg);
     }
     return server_port;
 }

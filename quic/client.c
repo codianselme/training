@@ -5,7 +5,6 @@
 #include <picosocks.h>
 #include <autoqlog.h>
 #include <picoquic_packet_loop.h>
-//#include "picoquic_sample.h"
 #include "client.h"
 
 
@@ -339,19 +338,20 @@ static int sample_client_loop_cb(picoquic_quic_t* quic, picoquic_packet_loop_cb_
     return ret;
 }
 
-/* Client:
- * - Create the QUIC context.
- * - Open the sockets
- * - Find the server's address
- * - Create a client context and a client connection.
- * - On a forever loop:
- *     - get the next wakeup time
- *     - wait for arrival of message on sockets until that time
- *     - if a message arrives, process it.
- *     - else, check whether there is something to send.
- *       if there is, send it.
- * - The loop breaks if the client connection is finished.
+/* Client :
+ * - Créer le contexte QUIC.
+ * - Ouvrir les sockets
+ * - Trouver l'adresse du serveur
+ * - Créer un contexte client et une connexion client.
+ * - Sur une boucle éternelle :
+ * - obtenir l'heure du prochain réveil
+ * - attendre l'arrivée d'un message sur les sockets jusqu'à ce moment-là
+ * - si un message arrive, le traiter.
+ * - sinon, vérifier s'il y a quelque chose à envoyer.
+ * Si c'est le cas, l'envoyer.
+ * - La boucle s'interrompt si la connexion du client est terminée.
  */
+
 
 int picoquic_sample_client(char const * server_name, int server_port, char const * default_dir,
     int nb_files, char const ** file_names)
