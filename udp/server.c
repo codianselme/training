@@ -69,7 +69,7 @@ int main (int argc, char**argv)
 	}
 
 	temps = time(NULL);
-	st_temps = localtime(&temps);
+	st_temps = localtime(&temps); 
 	bzero(filename, 256);
 	sprintf(filename,"fichier_copié.%d.%d.%d.%d.%d.%d",st_temps->tm_mday,st_temps->tm_mon+1,1900+st_temps->tm_year,st_temps->tm_hour,st_temps->tm_min,st_temps->tm_sec);
 	printf("Création du fichier de sortie : %s\n",filename);
@@ -98,7 +98,7 @@ int main (int argc, char**argv)
         n=recvfrom(socket_fd,&buf,BUFFERT,0,(struct sockaddr *)&clt,&taille);
 	}
     
-	printf("Nombre d'octets transférés : %lld \n",count);
+	printf("%lld octets transférés \n", count);
     
     close(socket_fd);
     close(socket_desc);

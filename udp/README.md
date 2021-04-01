@@ -8,4 +8,4 @@ Usage :
     ./server <Port_Serveur>
 
 2. Client code 
-    ./client <Ip_Serveur> <Port_Serveur> <Nom_du_fichier>
+    ./client <Ip_Serveur> <127.0.0.1> <port_server> <Nom_du_fichier>

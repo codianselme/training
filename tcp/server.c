@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -68,7 +69,10 @@ int main(int argc, char *argv[])
 
 	len = sizeof(client);
 	sock2 = accept(sock1, (struct sockaddr*)&client, &len);
-	while (1) {
+	printf("\nConnexion etablie ...");
+
+	while (1) 
+	{
 		recv(sock2, buf, 100, 0);
 		sscanf(buf, "%s", command);
 
@@ -92,7 +96,6 @@ int main(int argc, char *argv[])
 			send(sock2, &size, sizeof(int), 0);
 			if (size)
 				sendfile(sock2, filehandle, NULL, size);
-
 		}
 		else if (!strcmp(command, "put")) 
         {
@@ -123,7 +126,7 @@ int main(int argc, char *argv[])
 			buf[i - 1] = '\0';
 			fclose(f);
 			send(sock2, buf, 100, 0);
-		}
+		} 
 		else if (!strcmp(command, "cd")) 
         {
 			if (chdir(buf + 3) == 0) c = 1;

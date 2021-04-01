@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+//#include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -27,7 +28,7 @@ int tcp_connect(int af, char *servip, unsigned short port)
 	if ((s = socket(af, SOCK_STREAM, 0)) < 0)
 		return -1;
 	
-	printf("\n Création du socket ... ");
+	printf("\n Création du socket ... \n");
 	
 	bzero((char *)&servaddr, sizeof(servaddr));
 	servaddr.sin_family = af;
@@ -65,10 +66,10 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	while (1) 
+	while (1)  
     {
-		printf("\033[1;33mCommandes : get, put, pwd, ls, cd, quit\n");
-		printf("\033[1;32mclient> ");
+		printf("\033[1;33m \n Les commandes : get, put, pwd, ls, cd, quit\n");
+		printf("\033[1;32m client> ");
 		fgets(bufmsg, MAXLINE, stdin); 
 		fprintf(stderr, "\033[97m");   
 		if (!strcmp(bufmsg, "get\n")) 
@@ -127,20 +128,20 @@ int main(int argc, char *argv[])
 			strcpy(buf, "pwd");
 			send(sock, buf, 100, 0);
 			recv(sock, buf, 100, 0);
-			printf("--Le chemin du répertoire distant--\n%s", buf);
+			printf("Le chemin du répertoire distant \n %s", buf);
 		}
 		else if (!strcmp(bufmsg, "ls\n")) 
-        {
+		{
 			strcpy(buf, "ls");
 			send(sock, buf, 100, 0);
 			recv(sock, &size, sizeof(int), 0);
 			f = malloc(size);
 			recv(sock, f, size, 0);
-			filehandle = creat("temp.txt", O_WRONLY);
+			filehandle = creat("temps.txt", O_WRONLY);
 			write(filehandle, f, size, 0);
 			close(filehandle);
-			printf("--La liste des répertoires distants--\n");
-			system("cat temp.txt");	
+			printf("La liste du contenu du répertoire distant\n");
+			system("cat temps.txt");	
 		}
 		else if (!strcmp(bufmsg, "cd\n")) 
         {
@@ -151,7 +152,7 @@ int main(int argc, char *argv[])
 			send(sock, buf, 100, 0);     
 			recv(sock, &status, sizeof(int), 0);
 			if (status)
-				printf("Changement d'itinéraire terminé\n");
+				printf("Changement de répertoire terminé\n");
 			else
 				printf("Échec du changement de chemin\n");
 		}

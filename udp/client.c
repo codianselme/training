@@ -12,7 +12,7 @@
 // File function and bzero
 #include <fcntl.h>
 #include <unistd.h>
-#include <strings.h>
+#include <strings.h> 
 
 /* Taille du buffer utilise pour envoyer le fichier en plusieurs blocs */
 #define BUFFERT 512
@@ -29,8 +29,6 @@ int main (int argc, char**argv)
 	struct stat buffer;
 	struct sockaddr_in sock_serv;
     
-	// printf('Usage : ./executable <Ip_Serveur> <Port_Serveur> <Nom_du_fichier>');
-
 	if (argc != 4)
 	{
 		printf("Erreur!!! usage : %s <Ip_Serveur> <Port_Serveur> <Nom_du_fichier>\n",argv[0]);

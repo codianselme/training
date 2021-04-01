@@ -3,4 +3,4 @@ gcc server.c -lpicoquic-log -lpicoquic-core -lpicotls-core -lpicotls-openssl -lp
 
 ./server <port>
 
-./client <port> <files_names>
+./client <port> <folder> <files_names>

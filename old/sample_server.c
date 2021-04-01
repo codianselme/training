@@ -1,13 +1,93 @@
+/*
+* Author: Christian Huitema
+* Copyright (c) 2020, Private Octopus, Inc.
+* All rights reserved.
+*
+* Permission to use, copy, modify, and distribute this software for any
+* purpose with or without fee is hereby granted, provided that the above
+* copyright notice and this permission notice appear in all copies.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+* ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+* WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+* DISCLAIMED. IN NO EVENT SHALL Private Octopus, Inc. BE LIABLE FOR ANY
+* DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+* LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+* ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+/* The "sample" project builds a simple file transfer program that can be
+ * instantiated in client or server mode. The "sample_server" implements
+ * the server components of the sample application. 
+ *
+ * Developing the server requires two main components:
+ *  - the server "callback" that implements the server side of the
+ *    application protocol, managing a server side application context
+ *    for each connection.
+ *  - the server loop, that reads messages on the socket, submits them
+ *    to the Quic context, let the server prepare messages, and send
+ *    them on the appropriate socket.
+ *
+ * The Sample Server uses the "qlog" option to produce Quic Logs as defined
+ * in https://datatracker.ietf.org/doc/draft-marx-qlog-event-definitions-quic-h3/.
+ * This is an optional feature, which requires linking with the "loglib" library,
+ * and using the picoquic_set_qlog() API defined in "autoqlog.h". . When a connection
+ * completes, the code saves the log as a file named after the Initial Connection
+ * ID (in hexa), with the suffix ".server.qlog".
+ */
+
 #include <stdint.h>
 #include <stdio.h>
 #include <picoquic.h>
 #include <picosocks.h>
 #include <picoquic_utils.h>
 #include <autoqlog.h>
+#include "picoquic_sample.h"
 #include "picoquic_packet_loop.h"
-#include "server.h"
 
+/* Server context and callback management:
+ *
+ * The server side application context is created for each new connection,
+ * and is freed when the connection is closed. It contains a list of
+ * server side stream contexts, one for each stream open on the
+ * connection. Each stream context includes:
+ *  - description of the stream state:
+ *      name_read or not, FILE open or not, stream reset or not,
+ *      stream finished or not.
+ *  - the number of file name bytes already read.
+ *  - the name of the file requested by the client.
+ *  - the FILE pointer for reading the data.
+ * Server side stream context is created when the client starts the
+ * stream. It is closed when the file transmission
+ * is finished, or when the stream is abandoned.
+ *
+ * The server side callback is a large switch statement, with one entry
+ * for each of the call back events.
+ */
 
+typedef struct st_sample_server_stream_ctx_t {
+    struct st_sample_server_stream_ctx_t* next_stream;
+    struct st_sample_server_stream_ctx_t* previous_stream;
+    uint64_t stream_id;
+    FILE* F;
+    uint8_t file_name[256];
+    size_t name_length;
+    size_t file_length;
+    size_t file_sent;
+    unsigned int is_name_read : 1;
+    unsigned int is_stream_reset : 1;
+    unsigned int is_stream_finished : 1;
+} sample_server_stream_ctx_t;
+
+typedef struct st_sample_server_ctx_t {
+    char const* default_dir;
+    size_t default_dir_len;
+    sample_server_stream_ctx_t* first_stream;
+    sample_server_stream_ctx_t* last_stream;
+} sample_server_ctx_t;
 
 sample_server_stream_ctx_t * sample_server_create_stream_context(sample_server_ctx_t* server_ctx, uint64_t stream_id)
 {
@@ -280,18 +360,17 @@ int sample_server_callback(picoquic_cnx_t* cnx,
     return ret;
 }
 
-/* Configuration de la boucle du serveur :
- * - Créer le contexte QUIC.
- * - Ouvrir les sockets
- * - Sur une boucle éternelle :
- * - obtenir l'heure du prochain réveil
- * - attendre l'arrivée d'un message sur les sockets jusqu'à ce moment-là
- * - si un message arrive, le traiter.
- * - sinon, vérifier s'il y a quelque chose à envoyer.
- * Si c'est le cas, l'envoyer.
- * - La boucle s'interrompt si le socket renvoie une erreur. 
+/* Server loop setup:
+ * - Create the QUIC context.
+ * - Open the sockets
+ * - On a forever loop:
+ *     - get the next wakeup time
+ *     - wait for arrival of message on sockets until that time
+ *     - if a message arrives, process it.
+ *     - else, check whether there is something to send.
+ *       if there is, send it.
+ * - The loop breaks if the socket return an error. 
  */
-
 
 int picoquic_sample_server(int server_port, const char* server_cert, const char* server_key, const char* default_dir)
 {
@@ -305,7 +384,7 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
     default_context.default_dir = default_dir;
     default_context.default_dir_len = strlen(default_dir);
 
-    printf("Démarrage du serveur Picoquic sur le port %d\n", server_port);
+    printf("Starting Picoquic Sample server on port %d\n", server_port);
 
     /* Create the QUIC context for the server */
     current_time = picoquic_current_time();
@@ -314,7 +393,7 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
         sample_server_callback, &default_context, NULL, NULL, NULL, current_time, NULL, NULL, NULL, 0);
 
     if (quic == NULL) {
-        fprintf(stderr, "Impossible de créer le contexte du serveur \n");
+        fprintf(stderr, "Could not create server context\n");
         ret = -1;
     }
     else {
@@ -335,7 +414,7 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
     }
 
     /* And finish. */
-    printf("Fermeture du serveur, ret = %d\n", ret);
+    printf("Server exit, ret = %d\n", ret);
 
     /* Clean up */
     if (quic != NULL) {
@@ -343,26 +422,4 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
     }
 
     return ret;
-}
-
-
-int get_port(char const* port_arg)
-{
-    int server_port = atoi(port_arg);
-    if (server_port <= 0) 
-    {
-        fprintf(stderr, "Port invalide : %s\n", port_arg);
-    }
-    return server_port;
-}
-
-
-int main(int argc, char** argv)
-{
-    char* server_cert = "./certs/ca-cert.pem";
-    char* server_key = "./certs/ca-key.pem";
-    char* folder = "./server_files";
-
-    int server_port = get_port(argv[1]);
-    picoquic_sample_server(server_port, server_cert, server_key, folder);
 }
