@@ -3,6 +3,6 @@ gcc server.c -lpicoquic-log -lpicoquic-core -lpicotls-core -lpicotls-openssl -lp
 
 ./server <port>
 
-./client <port> <folder> <queried_file>
+./client <port> <folder> <queried_file> 
 
 PEM pass phrase = 'test'
