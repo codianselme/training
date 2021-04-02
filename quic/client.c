@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <picoquic.h>
@@ -5,9 +7,56 @@
 #include <picosocks.h>
 #include <autoqlog.h>
 #include <picoquic_packet_loop.h>
-#include "client.h"
 
 
+
+#define PICOQUIC_SAMPLE_H
+/* Header file for the picoquic sample project. 
+ * It contains the definitions common to client and server */
+
+#define PICOQUIC_SAMPLE_ALPN "picoquic_sample"
+#define PICOQUIC_SAMPLE_SNI "test.example.com"
+
+#define PICOQUIC_SAMPLE_NO_ERROR 0
+#define PICOQUIC_SAMPLE_INTERNAL_ERROR 0x101
+#define PICOQUIC_SAMPLE_NAME_TOO_LONG_ERROR 0x102
+#define PICOQUIC_SAMPLE_NO_SUCH_FILE_ERROR 0x103
+#define PICOQUIC_SAMPLE_FILE_READ_ERROR 0x104
+#define PICOQUIC_SAMPLE_FILE_CANCEL_ERROR 0x105
+
+#define PICOQUIC_SAMPLE_CLIENT_TICKET_STORE "sample_ticket_store.bin";
+#define PICOQUIC_SAMPLE_CLIENT_TOKEN_STORE "sample_token_store.bin";
+#define PICOQUIC_SAMPLE_CLIENT_QLOG_DIR ".";
+#define PICOQUIC_SAMPLE_SERVER_QLOG_DIR ".";
+
+
+
+
+typedef struct st_sample_client_stream_ctx_t {
+    struct st_sample_client_stream_ctx_t* next_stream;
+    size_t file_rank;
+    uint64_t stream_id;
+    size_t name_length;
+    size_t name_sent_length;
+    FILE* F;
+    size_t bytes_received;
+    uint64_t remote_error;
+    unsigned int is_name_sent : 1;
+    unsigned int is_file_open : 1;
+    unsigned int is_stream_reset : 1;
+    unsigned int is_stream_finished : 1;
+} sample_client_stream_ctx_t;
+
+typedef struct st_sample_client_ctx_t {
+    char const* default_dir;
+    char const** file_names;
+    sample_client_stream_ctx_t* first_stream;
+    sample_client_stream_ctx_t* last_stream;
+    int nb_files;
+    int nb_files_received;
+    int nb_files_failed;
+    int is_disconnected;
+} sample_client_ctx_t;
 
 static int sample_client_create_stream(picoquic_cnx_t* cnx,
     sample_client_ctx_t* client_ctx, int file_rank)
@@ -338,20 +387,19 @@ static int sample_client_loop_cb(picoquic_quic_t* quic, picoquic_packet_loop_cb_
     return ret;
 }
 
-/* Client :
- * - Créer le contexte QUIC.
- * - Ouvrir les sockets
- * - Trouver l'adresse du serveur
- * - Créer un contexte client et une connexion client.
- * - Sur une boucle éternelle :
- * - obtenir l'heure du prochain réveil
- * - attendre l'arrivée d'un message sur les sockets jusqu'à ce moment-là
- * - si un message arrive, le traiter.
- * - sinon, vérifier s'il y a quelque chose à envoyer.
- * Si c'est le cas, l'envoyer.
- * - La boucle s'interrompt si la connexion du client est terminée.
+/* Client:
+ * - Create the QUIC context.
+ * - Open the sockets
+ * - Find the server's address
+ * - Create a client context and a client connection.
+ * - On a forever loop:
+ *     - get the next wakeup time
+ *     - wait for arrival of message on sockets until that time
+ *     - if a message arrives, process it.
+ *     - else, check whether there is something to send.
+ *       if there is, send it.
+ * - The loop breaks if the client connection is finished.
  */
-
 
 int picoquic_sample_client(char const * server_name, int server_port, char const * default_dir,
     int nb_files, char const ** file_names)
@@ -482,11 +530,11 @@ int picoquic_sample_client(char const * server_name, int server_port, char const
 }
 
 
+
 int get_port(char const* port_arg)
 {
     int server_port = atoi(port_arg);
-    if (server_port <= 0) 
-    {
+    if (server_port <= 0) {
         fprintf(stderr, "Invalid port: %s\n", port_arg);
     }
     return server_port;
@@ -495,16 +543,12 @@ int get_port(char const* port_arg)
 
 int main(int argc, char** argv)
 {
-    // ./picoquic_sample localhost 4433 /tmp index.htm
-    //char* server_name = "localhost";
-    //char* folder = "/tmp";
+    char* server_name = "localhost";
+    // int server_port = 4433;
+    // char* folder = "/tmp";
 
-    int server_port = get_port(argv[2]);
-    char const** file_names = (char const **)(argv + 4);
-    int nb_files = argc - 4;
-
-    //char* folder = argv[2];
-    picoquic_sample_client(argv[1], server_port, argv[3], nb_files, file_names);
-    //picoquic_sample_client(server_name, server_port, folder, nb_files, file_names);
-
+    int server_port = get_port(argv[3]);
+    char const** file_names = (char const **)(argv + 2);
+    int nb_files = argc - 2;
+    picoquic_sample_client(server_name, argv[1], argv[2], nb_files, file_names);
 }

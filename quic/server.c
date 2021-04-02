@@ -1,13 +1,54 @@
+#include <stdlib.h>
+#include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <picoquic.h>
-#include <picosocks.h>
 #include <picoquic_utils.h>
+#include <picosocks.h>
 #include <autoqlog.h>
-#include "picoquic_packet_loop.h"
-#include "server.h"
+#include <picoquic_packet_loop.h>
 
 
+#define PICOQUIC_SAMPLE_H
+/* Header file for the picoquic sample project. 
+ * It contains the definitions common to client and server */
+
+#define PICOQUIC_SAMPLE_ALPN "picoquic_sample"
+#define PICOQUIC_SAMPLE_SNI "test.example.com"
+
+#define PICOQUIC_SAMPLE_NO_ERROR 0
+#define PICOQUIC_SAMPLE_INTERNAL_ERROR 0x101
+#define PICOQUIC_SAMPLE_NAME_TOO_LONG_ERROR 0x102
+#define PICOQUIC_SAMPLE_NO_SUCH_FILE_ERROR 0x103
+#define PICOQUIC_SAMPLE_FILE_READ_ERROR 0x104
+#define PICOQUIC_SAMPLE_FILE_CANCEL_ERROR 0x105
+
+#define PICOQUIC_SAMPLE_CLIENT_TICKET_STORE "sample_ticket_store.bin";
+#define PICOQUIC_SAMPLE_CLIENT_TOKEN_STORE "sample_token_store.bin";
+#define PICOQUIC_SAMPLE_CLIENT_QLOG_DIR ".";
+#define PICOQUIC_SAMPLE_SERVER_QLOG_DIR ".";
+
+
+typedef struct st_sample_server_stream_ctx_t {
+    struct st_sample_server_stream_ctx_t* next_stream;
+    struct st_sample_server_stream_ctx_t* previous_stream;
+    uint64_t stream_id;
+    FILE* F;
+    uint8_t file_name[256];
+    size_t name_length;
+    size_t file_length;
+    size_t file_sent;
+    unsigned int is_name_read : 1;
+    unsigned int is_stream_reset : 1;
+    unsigned int is_stream_finished : 1;
+} sample_server_stream_ctx_t;
+
+typedef struct st_sample_server_ctx_t {
+    char const* default_dir;
+    size_t default_dir_len;
+    sample_server_stream_ctx_t* first_stream;
+    sample_server_stream_ctx_t* last_stream;
+} sample_server_ctx_t;
 
 sample_server_stream_ctx_t * sample_server_create_stream_context(sample_server_ctx_t* server_ctx, uint64_t stream_id)
 {
@@ -280,18 +321,17 @@ int sample_server_callback(picoquic_cnx_t* cnx,
     return ret;
 }
 
-/* Configuration de la boucle du serveur :
- * - Créer le contexte QUIC.
- * - Ouvrir les sockets
- * - Sur une boucle éternelle :
- * - obtenir l'heure du prochain réveil
- * - attendre l'arrivée d'un message sur les sockets jusqu'à ce moment-là
- * - si un message arrive, le traiter.
- * - sinon, vérifier s'il y a quelque chose à envoyer.
- * Si c'est le cas, l'envoyer.
- * - La boucle s'interrompt si le socket renvoie une erreur. 
+/* Server loop setup:
+ * - Create the QUIC context.
+ * - Open the sockets
+ * - On a forever loop:
+ *     - get the next wakeup time
+ *     - wait for arrival of message on sockets until that time
+ *     - if a message arrives, process it.
+ *     - else, check whether there is something to send.
+ *       if there is, send it.
+ * - The loop breaks if the socket return an error. 
  */
-
 
 int picoquic_sample_server(int server_port, const char* server_cert, const char* server_key, const char* default_dir)
 {
@@ -305,7 +345,7 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
     default_context.default_dir = default_dir;
     default_context.default_dir_len = strlen(default_dir);
 
-    printf("Démarrage du serveur Picoquic sur le port %d\n", server_port);
+    printf("Starting Picoquic Sample server on port %d\n", server_port);
 
     /* Create the QUIC context for the server */
     current_time = picoquic_current_time();
@@ -314,7 +354,7 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
         sample_server_callback, &default_context, NULL, NULL, NULL, current_time, NULL, NULL, NULL, 0);
 
     if (quic == NULL) {
-        fprintf(stderr, "Impossible de créer le contexte du serveur \n");
+        fprintf(stderr, "Could not create server context\n");
         ret = -1;
     }
     else {
@@ -335,7 +375,7 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
     }
 
     /* And finish. */
-    printf("Fermeture du serveur, ret = %d\n", ret);
+    printf("Server exit, ret = %d\n", ret);
 
     /* Clean up */
     if (quic != NULL) {
@@ -349,9 +389,8 @@ int picoquic_sample_server(int server_port, const char* server_cert, const char*
 int get_port(char const* port_arg)
 {
     int server_port = atoi(port_arg);
-    if (server_port <= 0) 
-    {
-        fprintf(stderr, "Port invalide : %s\n", port_arg);
+    if (server_port <= 0) {
+        fprintf(stderr, "Invalid port: %s\n", port_arg);
     }
     return server_port;
 }
@@ -359,10 +398,13 @@ int get_port(char const* port_arg)
 
 int main(int argc, char** argv)
 {
-    char* server_cert = "./certs/ca-cert.pem";
-    char* server_key = "./certs/ca-key.pem";
+    //int server_port = 4433;
+    char* server_cert = "./ca-cert.pem";
+    char* server_key = "./ca-key.pem";
     char* folder = "./server_files";
+
 
     int server_port = get_port(argv[1]);
     picoquic_sample_server(server_port, server_cert, server_key, folder);
+
 }
