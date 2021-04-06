@@ -547,8 +547,8 @@ int main(int argc, char** argv)
     // int server_port = 4433;
     // char* folder = "/tmp";
 
-    int server_port = get_port(argv[3]);
+    int server_port = atoi(argv[1]);
     char const** file_names = (char const **)(argv + 2);
     int nb_files = argc - 2;
-    picoquic_sample_client(server_name, argv[1], argv[2], nb_files, file_names);
+    picoquic_sample_client(server_name, server_port, argv[2], nb_files, file_names);
 }
