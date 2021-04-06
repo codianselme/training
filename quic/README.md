@@ -1,7 +1,11 @@
+### Compliation 
 gcc server.c -lpicoquic-log -lpicoquic-core -lpicotls-core -lpicotls-openssl -lpicotls-fusion -lpicotls-minicrypto -ldl -lpthread -lssl -lcrypto -L. -I. -o server
 
-./server <port>
+### Run server
+./server <port_number>
 
-./client <port> <folder> <queried_file> 
+### Run client 
+./client <port_number> <folder> <queried_file>
 
+### PEM pass
 PEM pass phrase = 'test'
