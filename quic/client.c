@@ -543,12 +543,12 @@ int get_port(char const* port_arg)
 
 int main(int argc, char** argv)
 {
-    // char* server_name = "localhost";
+    char* server_name = "localhost";
     // int server_port = 12000;
     // char* folder = "./home/anselme/Bureau/";
 
-    int server_port = get_port(argv[3]);
-    char const** file_names = (char const **)(argv + 5);
-    int nb_files = argc - 5;
-    picoquic_sample_client(argv[2], server_port, argv[4], nb_files, file_names);
+    int server_port = atoi(argv[1]);
+    char const** file_names = (char const **)(argv + 2);
+    int nb_files = argc - 2;
+    picoquic_sample_client(server_name, server_port, argv[2], nb_files, file_names);
 }
