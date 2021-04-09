@@ -1,0 +1,7 @@
+C06_1169_2P.pdf
+img.jpg
+ls.txt
+.txt
+server
+server.c
+server_files

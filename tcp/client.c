@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
 			printf("Connecion FTP réussie !!\n");
 			while(1)
 			{
-				printf("Entrez une commande : \n -get \n -put \n -pwd \n -ls \n -cd \n -quit \n -client_cd \n -client_pwd \n -client_ls \n -aide\n");
+				Message();
 				Screen_print();
 				scanf("%s",bufmsg);
 				if(!strcmp(bufmsg,"get"))
@@ -159,6 +159,20 @@ int main(int argc, char *argv[])
 			}
  		}
  	}
+}
+
+
+void Message(void)
+{
+    printf("\n");
+    printf("\n\t\t  **-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**");
+    printf("\n\t\t        =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
+    printf("\n\t\t        =   -get      -put    	-pwd       -ls    =");
+    printf("\n\t\t        =   -cd         -quit     -client_cd        =");
+    printf("\n\t\t        =   -client_pwd      -client_ls    -aide    =");
+    printf("\n\t\t        =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
+    printf("\n\t\t  **-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**\n");
+    printf("\n");
 }
 
 
