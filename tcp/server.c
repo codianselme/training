@@ -1,145 +1,263 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <string.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/sendfile.h>
 #include <netinet/in.h>
 #include <fcntl.h>
+//#include <unistd.h>
 
-void welcomeMessage(void)
+
+int tcp_listen(int host, int port, int backlog);
+int tcp_ls(int sock_msg, int sock_file);
+int tcp_get(int sock_msg,char *buf_value, int sock_file);
+int tcp_put(int sock_msg, char *buf_value, char *comm_value, int sock_file);
+int tcp_pwd(int sock_msg, int sock_file);
+int tcp_cd(int sock_msg, char *buf_value);
+int tcp_quit(int sock_msg);
+
+int main(int argc, char *argv[])
 {
-    printf("\n");
-    printf("\n\t\t  **-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**");
-    printf("\n\t\t        =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
-    printf("\n\t\t        =                 WELCOME TO TCP            =");
-    printf("\n\t\t        =                     SERVER                =");
-    printf("\n\t\t        =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
-    printf("\n\t\t  **-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**\n");
-    printf("\n\t Enter any key to continue..... \n");
-    getchar();
+	//Structure contenant l'adresse du socket (IP + Port Number, Famille d'adresse)
+	struct sockaddr_in server, client;
+	char buf[100], command[5], filename[20];
+	int sock1, sock2, sock3, sock4;
+	int input, result, filehandle, len;
+	
+
+	printf("Entrer un Numéro de Port : ");
+	scanf("%d", &input);
+
+	sock1 = tcp_listen(INADDR_ANY, input, 5);
+	sock2 = tcp_listen(INADDR_ANY, input+1, 6);
+	len = sizeof(client);
+	sock3 = accept(sock1, (struct sockaddr*)&client, &len);
+	sock4 = accept(sock2, (struct sockaddr*)&client, &len);
+
+	while(1)
+	{
+		//Reception de la commande du client 
+		recv(sock3, buf, 100, 0);
+		sscanf(buf,"%s",command);
+		if(!strcmp(command,"ls"))
+		{
+			result = tcp_ls(sock3, sock4);
+			if(result==-1){
+				printf("La commande <ls> a échouée !!\n");
+			}
+			else{
+				printf("Commande <ls> réussie !!\n");
+			}
+		}
+		else if(!strcmp(command,"get"))
+		{
+			result = tcp_get(sock3,buf,sock4);
+			if(result==-1){
+				printf(" Erreur de téléchargement du fichier!!\n");
+			}
+			else{
+				printf("Téléchargement du fichier réussi !!\n");
+			}
+		}
+		else if(!strcmp(command,"put"))
+		{
+			result = tcp_put(sock3,buf,command,sock4);
+			if(result==-1){
+				printf("Erreur de téléchargement du fichier!!\n");
+			}
+			else{
+				printf("Téléchargement du fichier réussi!!\n");
+			}
+		}
+		else if(!strcmp(command,"pwd"))
+		{
+			result = tcp_pwd(sock3, sock4);
+			if(result==-1){
+				printf("Impossible d'exécuter la commande pwd!!\n");
+			}
+			else{
+				printf("Exécution la commande pwd réussie !!\n");
+			}
+		}
+		else if(!strcmp(command,"cd"))
+		{
+			result = tcp_cd(sock3, buf);
+
+			if(result == -1){
+				printf("Impossible d'exécuter la commande cd !!\n");
+			}
+			else{
+				printf("Exécution la commande cd réussie  !!\n");
+			}
+		}
+		else if(!strcmp(command,"quit"))
+		{
+			//quit
+			result = tcp_quit(sock3);
+			if(result ==-1){
+				printf("L'arret du Server a échouée !!\n");
+			}
+			else{
+				printf("Server terminé avec succès !!\n");
+				exit(0);
+			}
+		}
+	}
+	return 0; 
 }
 
-int tcp_init(int host, int port, int backlog) 
+int tcp_listen(int host, int port, int backlog)
 {
 	int sd;
 	struct sockaddr_in servaddr;
 
-	sd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sd == -1) {
-		perror("Echec de création du socket");
+	sd = socket(AF_INET, SOCK_STREAM,0);
+	if(sd == -1){
+		perror("socket échec!!");
 		exit(1);
 	}
-
-	printf("Création du socket ... \n");
-    sleep(1);
-	
+	//bzero
 	bzero((char *)&servaddr, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
+	//IP Address
 	servaddr.sin_addr.s_addr = htonl(host);
+	//Port
 	servaddr.sin_port = htons(port);
-	if (bind(sd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) 
-    {
-		perror("Echec de la liaison");  
-        exit(1);
+	//IP
+	if(bind(sd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0){
+		perror("Echec de liaison !!");
+		exit(1);
 	}
-	
-	printf("Liaison établie ... \nAdresse : %d \nPort : %i \n", htonl(host), htons(port));
-    sleep(1);
-
-	listen(sd, backlog);
-
-	printf("Serveur en attente de connexion client ... \n");
-    sleep(1);
-	
-	return sd;
+	//
+	listen(sd,backlog);
+	return sd; 
 }
 
-int main(int argc, char *argv[])
+
+//ls
+int tcp_ls(int sock_msg, int sock_file)
 {
-	struct sockaddr_in server, client;
-	struct stat obj;
-	int sock1, sock2;
-	char buf[100], command[5], filename[20];
-	int k, i, size, len, c;
+	int value;
 	int filehandle;
+	int size;
+	struct stat obj;
+	system("ls > ls.txt");
+	stat("ls.txt",&obj);
+	size = obj.st_size;
+	send(sock_msg, &size, sizeof(int), 0);
+	filehandle = open("ls.txt",O_RDONLY);
+	value = sendfile(sock_file,filehandle,NULL,size);
+	return value; 
+}
 
-	sock1 = tcp_init(INADDR_ANY, atoi(argv[1]), 5);
 
-	len = sizeof(client);
-	sock2 = accept(sock1, (struct sockaddr*)&client, &len);
-	printf("\nConnexion etablie ...");
 
-	while (1) 
+
+int tcp_get(int sock_msg, char *buf_value, int sock_file)
+{
+	char filename[20];
+	struct stat obj;
+	int filehandle;
+	int result;
+	int size;
+	sscanf(buf_value,"%s%s",filename,filename);
+	stat(filename,&obj);
+
+	filehandle = open(filename, O_RDONLY);
+	size = obj.st_size;
+	if(filehandle == -1){
+		size = 0;
+	}
+
+	result = send(sock_msg, &size, sizeof(int), 0);
+
+	if(size){
+		result = sendfile(sock_file,filehandle, NULL, size);
+	}
+	return result; 
+}
+
+
+
+int tcp_put(int sock_msg, char *buf_value, char *comm_value, int sock_file)
+{
+	int result;
+	int c = 0;
+	int len;
+	char *f;
+	int size;
+	int filehandle;
+	int filename[50];
+
+	sscanf(buf_value + strlen(comm_value), "%s", filename);
+	recv(sock_msg, &size, sizeof(int),0);
+
+	while (1)
 	{
-		recv(sock2, buf, 100, 0);
-		sscanf(buf, "%s", command);
-
-		if (!strcmp(command, "ls")) 
-        {
-			system("ls >temps.txt");
-			stat("temps.txt", &obj);
-			size = obj.st_size;
-			send(sock2, &size, sizeof(int), 0);
-			filehandle = open("temps.txt", O_RDONLY);
-			sendfile(sock2, filehandle, NULL, size);
+		filehandle = open(filename, O_CREAT | O_EXCL | O_WRONLY, 0666);
+		if(filehandle == -1){
+			sprintf(filename + strlen(filename), "_1");
 		}
-		else if (!strcmp(command, "get")) 
-        {
-			sscanf(buf, "%s%s", filename, filename);
-			stat(filename, &obj);
-			filehandle = open(filename, O_RDONLY);
-			size = obj.st_size;
-			if (filehandle == -1)
-				size = 0;
-			send(sock2, &size, sizeof(int), 0);
-			if (size)
-				sendfile(sock2, filehandle, NULL, size);
-		}
-		else if (!strcmp(command, "put")) 
-        {
-			int c = 0, len;
-			char *f;
-			sscanf(buf + strlen(command), "%s", filename);
-			recv(sock2, &size, sizeof(int), 0);
-
-			while (1) 
-            {
-				filehandle = open(filename, O_CREAT | O_EXCL | O_WRONLY, 0666);
-				if (filehandle == -1)
-					sprintf(filename + strlen(filename), "_1");
-				else break;
-			}
-			f = malloc(size);
-			recv(sock2, f, size, 0);
-			c = write(filehandle, f, size);
-			close(filehandle);
-			send(sock2, &c, sizeof(int), 0);
-		}
-		else if (!strcmp(command, "pwd")) 
-        {
-			system("pwd>temp.txt");
-			i = 0;
-			FILE*f = fopen("temp.txt", "r");
-			while (!feof(f)) buf[i++] = fgetc(f);
-			buf[i - 1] = '\0';
-			fclose(f);
-			send(sock2, buf, 100, 0);
-		} 
-		else if (!strcmp(command, "cd")) 
-        {
-			if (chdir(buf + 3) == 0) c = 1;
-			else c = 0;	
-			send(sock2, &c, sizeof(int), 0);
-		}
-		else if (!strcmp(command, "Au revoir") || !strcmp(command, "quit")) 
-        {
-			printf("Fermeture du serveur..\n");
-			i = 1;
-			send(sock2, &i, sizeof(int), 0);
-			exit(0);
+		else{
+			break;
 		}
 	}
-	return 0;
+
+	f = malloc(size);
+	recv(sock_file, f, size,0);
+	c = write(filehandle, f, size);
+	close(filehandle);
+	result = send(sock_msg, &c, sizeof(int), 0);
+	return result; 
+}
+
+
+
+//FTP Server
+int tcp_pwd(int sock_msg, int sock_file)
+{
+	int value;
+	int filehandle;
+	struct stat obj;
+	int size;
+
+	system("pwd>pwd.txt");
+	stat("pwd.txt", &obj);
+	size = obj.st_size;
+	value = send(sock_msg, &size, sizeof(int), 0);
+	filehandle = open("pwd.txt", O_RDONLY);
+	sendfile(sock_file, filehandle, NULL, size);
+	return value; 
+}
+
+
+
+
+int tcp_cd(int sock_msg, char *buf_value)
+{
+	int value;
+	int c;
+
+	printf("%s", buf_value);
+	if(chdir(buf_value + 3) == 0){
+		c = 1;
+	}
+	else{
+		c = 0;
+	}
+	value = send(sock_msg, &c, sizeof(int), 0);
+	return value; 
+}
+
+
+
+//Sever
+int tcp_quit(int sock_msg)
+{
+	int value;
+	int i;
+	value = send(sock_msg, &i, sizeof(int), 0);
+	return value; 
 }
