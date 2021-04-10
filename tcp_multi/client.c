@@ -36,7 +36,7 @@ int main(int argc, char *argv[]){
 	int pid_number;
 	char msg[MAXLINE];
 	while(1){
-		printf(" Entrer le port du Server : ");
+		printf("Entrer le port du Server : ");
 		scanf("%d",&port);
 
 		TCP_Connect(AF_INET, bufmsg, port, &sock);
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]){
 					perror("send: ");
 				}
 				if(!strcmp(bufmsg,"get")){
-					printf("Commande get \n");
+					//printf("Commande get \n");
 					result = File_get(sock, sock1);
 					if(result==-1){
 						printf("get La commande n'a pas pu être exécutée normalement.\n");
@@ -72,7 +72,6 @@ int main(int argc, char *argv[]){
 					}
 				}
 				else if(!strcmp(bufmsg,"put")){
-					printf("Commande put \n");
 					result = File_put(sock, sock1);
 					if(result==-1){
 						printf("put La commande n'a pas pu être exécutée normalement.\n");
@@ -82,7 +81,7 @@ int main(int argc, char *argv[]){
 					}
 				}
 				else if(!strcmp(bufmsg,"pwd")){
-					printf("Commande pwd\n");
+					//printf("Commande pwd\n");
 					result = File_pwd(sock, sock1);
 					if(result==-1){
 						printf("pwd La commande n'a pas pu être exécutée normalement.\n");
@@ -92,7 +91,7 @@ int main(int argc, char *argv[]){
 					}
 				}
 				else if(!strcmp(bufmsg,"ls")){
-					printf("Commande ls \n");
+					//printf("Commande ls \n");
 					result = File_ls(sock, sock1);
 					if(result==-1){
 						printf("ls La commande n'a pas pu être exécutée normalement.\n");
@@ -102,7 +101,7 @@ int main(int argc, char *argv[]){
 					}
 				}
 				else if(!strcmp(bufmsg,"cd")){
-					printf("Commande cd\n");
+					//printf("Commande cd\n");
 					result = File_cd(sock);
 					if(result==-1){
 						printf("cd La commande n'a pas pu être exécutée normalement.\n");
@@ -202,7 +201,6 @@ int File_put(int sock_msg,int sock_file){
 	int status;
 
 	send(sock_msg, "put", 100,0);
-	printf(" Saisissez le fichier à télécharger. \n");
 	Screen_print();
 	scanf("%s",filename);
 	filehandle = open(filename, O_RDONLY);
@@ -238,7 +236,6 @@ int File_get(int sock_msg,int sock_file){
 	int filehandle;
 
 	send(sock_msg, "get", 100,0);
-	printf("Veuillez saisir le fichier à télécharger \n");
 	Screen_print();
 	scanf("%s",filename);
 	printf("%s\n",filename);
@@ -253,7 +250,7 @@ int File_get(int sock_msg,int sock_file){
 		return -1;
 	}
 	f = malloc(size);
-	printf("size value : %d\n",size);
+	printf("Taille : %d octets\n",size);
 	//Reception du fichier
 	recv(sock_file,f,size,0);
 	//Création de fichier
@@ -268,7 +265,6 @@ int File_get(int sock_msg,int sock_file){
 	}
 	write(filehandle,f,size);
 	close(filehandle);
-	printf(" Téléchargement complet !!\n");
 	return value; 
 }
 
@@ -285,7 +281,6 @@ int File_pwd(int sock_msg,int sock_file){
 
 	strcpy(buf,"pwd");
 	value = send(sock_msg,buf,100,0);
-	printf("send value : %d\n",value);
 	value = recv(sock_msg, &size, sizeof(int), 0);
 	f = malloc(size);
 	recv(sock_file,f,size,0);
@@ -312,12 +307,10 @@ int File_ls(int sock_msg, int sock_file){
 	recv(sock_msg,&size,sizeof(int),0);
 	f = malloc(size);
 	value = recv(sock_file,f,size,0);
-	printf("size : %d\n",size);
-	printf("value : %d\n",value);
+	printf("Taille : %d octets\n",size);
 	filehandle = open("ls.txt",O_RDWR | O_CREAT ,0666);
 	write(filehandle, f, size);
 	close(filehandle);
-	printf(" Liste des répertoires \n");
 	system("cat ls.txt");
 
 	return value; 
@@ -333,15 +326,12 @@ int File_cd(int sock_msg){
 
 	send(sock_msg,"cd",100,0);
 	strcpy(buf,"cd ");
-	printf(" Entrez le chemin à déplacer \n"); 
 	Screen_print();
 	scanf("%s", temp);
 	strcat(buf,temp);
-	printf("%s\n",buf);
 	send(sock_msg,buf,100,0);
 	recv(sock_msg, &status, sizeof(int), 0);
 
-	printf("%d\n",status);
 	if (status){
 		printf(" Changement de chemin complet \n");
 	}
@@ -354,11 +344,8 @@ int File_cd(int sock_msg){
 
 
 void Quit(int sock_msg){
-	// int status;
-	// char buf[100];
-	// strcpy(buf,"quit");
-	// send(sock_msg,buf,100,0);
-	// status = recv(sock_msg,&status,100,0);
+	system("rm ls.txt");
+	system("rm pwd.txt");
 	exit(0); 
 }
 	
@@ -375,7 +362,7 @@ int Client_cd(){
 	int result;
 	char input[100];
 	strcpy(input,"cd ");
-	printf("Entrez le nom du chemin vers lequel vous souhaitez accéder\n");
+	printf("Entrez le nom du nouveau répertoire\n");
 	Screen_print();
 	scanf("%s", input + 3);
 	if(chdir(input + 3) == 0){
@@ -403,14 +390,14 @@ int Client_ls(){
 
 
 void Help(){
-	printf ("Usage:: EX: get filename.extension");
-	printf ("get télécharge un fichier du serveur vers le client. \n");
-	printf ("put télécharge un fichier du client vers le serveur. \n");
-	printf ("pwd montre le chemin vers le serveur. \n");
-	printf ("ls affiche une liste de fichiers sur le serveur. \n");
-	printf ("cd déplace le chemin vers le serveur. \n");
-	printf ("quit arrête le serveur. \n");
-	printf ("client_cd déplace le chemin du client. \n");
-	printf ("client_pwd montre le chemin du client. \n");
-	printf ("client_ls affiche une liste de fichiers sur le client. \n");
+	printf ("Usage:: 	\nEX: get filename.extension");
+	printf ("<get> 		  Télécharge un fichier du serveur vers le client. \n");
+	printf ("<put> 		  Télécharge un fichier du client vers le serveur. \n");
+	printf ("<pwd> 		  Montre le chemin vers le serveur. \n");
+	printf ("<ls> 		  Affiche une liste de fichiers sur le serveur. \n");
+	printf ("<cd> 		  Déplace le chemin vers le serveur. \n");
+	printf ("<quit> 	  Arrête le serveur. \n");
+	printf ("<client_cd>  Déplace le chemin du client. \n");
+	printf ("<client_pwd> Montre le chemin du client. \n");
+	printf ("<client_ls>  Affiche une liste de fichiers sur le client. \n");
 }

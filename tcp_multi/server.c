@@ -41,9 +41,8 @@ int main(int argc, char *argv[])
 	int len, n, result;
 	char buf[100];
 
-	printf("Entrer un Numéro de Port : ");
-	scanf("%d",&input);
-	//sock1,sock3
+	printf("Entrer le Numéro de Port : ");
+	scanf("%d", &input);
 
 	sock1 = tcp_listen(INADDR_ANY, input,5);
 	sock2 = tcp_listen(INADDR_ANY, input+1,6);
@@ -67,13 +66,12 @@ int main(int argc, char *argv[])
 				return -1;
 			}
 			else if(pid1 > 0){
-				send(sock3, "FTP!", 100, 0);
+				send(sock3, "Protocol TCP", 100, 0);
 				child = getpid();
-				printf("N° du pid : %d\n",child);
+				printf("\nN° du pid : %d\n",child);
 				//
 				send(sock3,&child,100,0);
-				printf("Utilisateur %d\n",num_user);
-				//printf("%d Client principal !\n",num_user);
+				printf("Utilisateur %d\n\n",num_user);
 				main_select(sock3,sock4);
 			}
 		}
@@ -131,7 +129,6 @@ int tcp_get(int sock_msg, int sock_file){
 	stat(filename,&obj);
 	filehandle = open(filename, O_RDONLY);
 	size = obj.st_size;
-	printf("Nom de fichier reçu !!\n");
 
 	if(filehandle == -1){
 		size = 0;
@@ -140,12 +137,11 @@ int tcp_get(int sock_msg, int sock_file){
 
 	//S'il existe un fichier, la taille du fichier est envoyée.
 	send(sock_msg, &size, sizeof(int), 0);
-	printf("Soumission de la taille du fichier terminée !!\n");
 
-	printf("Taille du fichier : %d\n",size);
+	printf("Taille du fichier : %d octets\n",size);
 	if(size){
 		result = sendfile(sock_file,filehandle, NULL, size);
-		printf("Terminer l'envoi du fichier !!\n");
+		printf("Envoi du fichier terminé!!\n");
 	}
 	close(filehandle);
 	return 0;
@@ -191,7 +187,6 @@ int tcp_put(int sock_msg, int sock_file){
 	}
 	write(filehandle, f, size);
 	close(filehandle);
-	printf(" !!\n");
 	return result; 
 }
 
@@ -209,7 +204,6 @@ int tcp_pwd(int sock_msg, int sock_file){
 	size = obj.st_size;
 
 	value = send(sock_msg,&size,sizeof(int),0);
-	printf("size : %d\n",&size);
 	filehandle = open("pwd.txt",O_RDONLY);
 	sendfile(sock_file,filehandle,NULL,size);
 
@@ -224,7 +218,6 @@ int tcp_cd(int sock_msg){
 
 	sleep(5);
 	recv(sock_msg,buf_value,100,0);
-	printf("%s\n",buf_value);
 	if(chdir(buf_value + 3) == 0){
 		c = 1;
 	}
@@ -259,8 +252,7 @@ void main_select(int sock_msg, int sock_file){
 	while(1){
 		recv(sock_msg,buf,100,0);
 		recv(sock_msg, buf, 100, 0);
-		printf(": %s\n",buf);
-		printf("size %d\n",strlen(buf));
+
 		if(!strcmp(buf,"ls")){
 			//ls
 			result = tcp_ls(sock_msg, sock_file);
@@ -268,7 +260,7 @@ void main_select(int sock_msg, int sock_file){
 				printf("ls\n");
 			}
 			else{
-				printf("ls\n");
+				printf("Commande : ls\n");
 			}
 		}
 		else if(!strcmp(buf,"get")){
@@ -279,7 +271,7 @@ void main_select(int sock_msg, int sock_file){
 				printf("get\n");
 			}
 			else{
-				printf("get\n");
+				printf("Commande : get\n");
 			}
 		}
 		else if(!strcmp(buf,"put")){
@@ -289,7 +281,7 @@ void main_select(int sock_msg, int sock_file){
 				printf("put\n");
 			}
 			else{
-				printf("put\n");
+				printf("Commande : put\n");
 			}
 		}
 		else if(!strcmp(buf,"pwd")){
@@ -298,7 +290,7 @@ void main_select(int sock_msg, int sock_file){
 			if(result==-1){
 				printf("pwd !!\n");
 			}else{
-				printf("pwd !!\n");
+				printf("Commande : pwd \n");
 			}
 		}
 		else if(!strcmp(buf,"cd")){
@@ -308,7 +300,7 @@ void main_select(int sock_msg, int sock_file){
 			if(result == -1){
 				printf("cd\n");
 			}else{
-				printf("cd\n");
+				printf("Commande : cd\n");
 			}
 		}
 		else if(!strcmp(buf,"quit")){
