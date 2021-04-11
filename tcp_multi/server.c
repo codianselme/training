@@ -33,53 +33,42 @@ struct sigaction sact;
 sigset_t mask;
 struct sockaddr_in servaddr;
 
-int main(int argc, char *argv[])
-{
-	struct sockaddr_in  client;
-	int sock1, sock2, sock3, sock4;
-	int input, child;
-	//int n, result;
-	socklen_t len;
-	//char buf[100];
-
-	printf("Entrer le Numéro de Port : ");
-	scanf("%d", &input);
-
-	sock1 = tcp_listen(INADDR_ANY, input,5);
-	sock2 = tcp_listen(INADDR_ANY, input+1,6);
-	len = sizeof(client);
-	if((pid=fork())!=0){
-		exit(0);
-	}
-	else{
-		while(1){
-			sock3 = accept(sock1, (struct sockaddr*)&client, &len);
-			sock4 = accept(sock2, (struct sockaddr*)&client, &len);
-			
-			if(sock3 < 0){
-				continue;
-			}
-			num_user++;
-			pid1 = fork();
-			
-			if(pid1 < 0){
-				printf("\n");
-				return -1;
-			}
-			else if(pid1 > 0){
-				send(sock3, "Protocol TCP", 100, 0);
-				child = getpid();
-				printf("\nN° du pid : %d\n",child);
-				//
-				send(sock3,&child,100,0);
-				printf("Utilisateur %d\n\n",num_user);
-				main_select(sock3,sock4);
-			}
-		}
-	}
-	return 0; 
+int main(int argc, char *argv[]){
+  struct sockaddr_in  client;
+  int sock1, sock2, sock3, sock4;
+  int port1, port2, child;
+  socklen_t len;
+  if(argc!=3){
+    fprintf(stderr, "USAGE %s <port1> <port2>\n", argv[0]);
+    return 0;
+  }
+  port1 = atoi(argv[1]);
+  port2 = atoi(argv[2]);
+  sock1 = tcp_listen(INADDR_ANY, port1,5);
+  sock2 = tcp_listen(INADDR_ANY, port2,6);
+  len = sizeof(client);
+  while(1){
+    sock3 = accept(sock1, (struct sockaddr*)&client, &len);
+    sock4 = accept(sock2, (struct sockaddr*)&client, &len);		
+    if(sock3 < 0)
+      continue;
+    num_user++;
+    pid1 = fork();
+    if(pid1 < 0){
+      printf("\n");
+      return -1;
+    }
+    else if(pid1 > 0){
+      send(sock3, "Protocol TCP", 100, 0);
+      child = getpid();
+      printf("\nN° du pid : %d\n",child);
+      send(sock3,&child,100,0);
+      printf("Utilisateur %d\n\n",num_user);
+      main_select(sock3,sock4);
+    }
+  }
+  return 0;
 }
-
 
 int tcp_listen(int host, int port, int backlog){
 	int sd = 0;

@@ -28,63 +28,64 @@ void Message(void);
 
 
 int main(int argc, char *argv[]){
-	//struct sockaddr_in server;
-	//struct stat obj;
-	int sock,sock1;
-	char bufmsg[MAXLINE];
-	int port;
-	//char ip[MAXLINE];
-	int result;
-	int pid_number;
-	char msg[MAXLINE];
-	while(1){
-		printf("Entrer le port du Server : ");
-		scanf("%d",&port);
-
-		TCP_Connect(AF_INET, bufmsg, port, &sock);
-		TCP_Connect(AF_INET, bufmsg, port+1, &sock1);
-		if(sock == -1 && sock1 == -1){
-			exit(1);
-		}
-		else{
-			recv(sock,msg,100,0);
-			recv(sock,&pid_number,100,0);
-			printf("%s\n",msg);
-			printf("Numéro du PID : %d\n",pid_number);
-			//printf("%d - %d\n",sock, sock1);
-			while(1){
-				Message();
-				Screen_print();
-				scanf("%s",bufmsg);
-
-				if((send(sock,bufmsg,100,0)) < 0)
-				{
-					perror("send: ");
-				}
-				if(!strcmp(bufmsg,"get")){
-					result = File_get(sock, sock1);
-					if(result==-1){
-						printf("get La commande n'a pas pu être exécutée normalement.\n");
-					}
-					else{
-						//printf("get J'ai exécuté la commande normalement\n");
-					}
-				}
-				else if(!strcmp(bufmsg,"put")){
-					result = File_put(sock, sock1);
-					if(result==-1){
-						printf("put La commande n'a pas pu être exécutée normalement.\n");
-					}
-					else{
-						//printf("put J'ai exécuté la commande normalement.\n");
-					}
-				}
-				else if(!strcmp(bufmsg,"pwd")){
-					result = File_pwd(sock, sock1);
-					if(result==-1){
-						printf("pwd La commande n'a pas pu être exécutée normalement.\n");
-					}
-					else{
+  int sock,sock1;
+  char bufmsg[MAXLINE];
+  int port1, port2;
+  int result;
+  int pid_number;
+  char msg[MAXLINE];
+  char c;
+  while((c = getopt(argc, argv, "p:P:")) != -1) {
+    switch(c){
+      case 'p':
+        port1 = atoi(optarg);
+        break;
+      case 'P':
+        port2 = atoi(optarg);
+        break;
+      default:
+        break;
+      
+    }
+  }
+  while(1){
+    TCP_Connect(AF_INET, bufmsg, port1, &sock);
+    TCP_Connect(AF_INET, bufmsg, port2, &sock1);
+    if(sock == -1 && sock1 == -1)
+      exit(1);
+    else{
+      recv(sock,msg,100,0);
+      recv(sock,&pid_number,100,0);
+      printf("%s\n",msg);
+      printf("Numéro du PID : %d\n",pid_number);
+      //printf("%d - %d\n",sock, sock1);
+      while(1){
+        Message();
+        Screen_print();
+        scanf("%s",bufmsg);
+        if((send(sock,bufmsg,100,0)) < 0)
+          perror("send: ");
+        if(!strcmp(bufmsg,"get")){
+          result = File_get(sock, sock1);
+          if(result==-1){
+            printf("get La commande n'a pas pu être exécutée normalement.\n");
+          }
+	}
+	else if(!strcmp(bufmsg,"put")){
+	  result = File_put(sock, sock1);
+	  if(result==-1){
+	    printf("put La commande n'a pas pu être exécutée normalement.\n");
+	  }
+	  else{
+	    //printf("put J'ai exécuté la commande normalement.\n");
+	  }
+	}
+	else if(!strcmp(bufmsg,"pwd")){
+	  result = File_pwd(sock, sock1);
+	  if(result==-1){
+	    printf("pwd La commande n'a pas pu être exécutée normalement.\n");
+	  }
+	  else{
 						//printf("pwd La commande a été exécutée normalement.\n");
 					}
 				}
