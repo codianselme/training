@@ -35,11 +35,12 @@ struct sockaddr_in servaddr;
 
 int main(int argc, char *argv[])
 {
-	struct sockaddr_in server, client;
+	struct sockaddr_in  client;
 	int sock1, sock2, sock3, sock4;
-	int input, child, status;
-	int len, n, result;
-	char buf[100];
+	int input, child;
+	//int n, result;
+	socklen_t len;
+	//char buf[100];
 
 	printf("Entrer le Numéro de Port : ");
 	scanf("%d", &input);
@@ -120,8 +121,7 @@ int tcp_get(int sock_msg, int sock_file){
 	char filename[50];
 	struct stat obj;
 	int filehandle;
-	int result;
-	char buffer[2048];
+	//char buffer[2048];
 	int size;
 
 	recv(sock_msg,filename,50,0);
@@ -140,8 +140,9 @@ int tcp_get(int sock_msg, int sock_file){
 
 	printf("Taille du fichier : %d octets\n",size);
 	if(size){
+		int result = 0;
 		result = sendfile(sock_file,filehandle, NULL, size);
-		printf("Envoi du fichier terminé!!\n");
+		printf("Envoi du fichier terminé %d!!\n", result);
 	}
 	close(filehandle);
 	return 0;
@@ -152,13 +153,13 @@ int tcp_get(int sock_msg, int sock_file){
 
 
 int tcp_put(int sock_msg, int sock_file){
-	int result;
-	int c = 0;
-	int len;
+	int result = 0;
+	//int c = 0;
+	//int len;
 	char *f;
 	int size;
 	int filehandle;
-	int filename[50];
+	char filename[50];
 	sleep(5);
 	//Reception du nom du fichier à télécharger
 	recv(sock_msg, filename, 100,0);

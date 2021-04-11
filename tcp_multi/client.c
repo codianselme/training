@@ -6,6 +6,7 @@
 #include <sys/sendfile.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 #include <fcntl.h>
 
 
@@ -23,15 +24,16 @@ int Client_cd();
 int Client_pwd();
 int Client_ls();
 void Screen_print();
+void Message(void);
 
 
 int main(int argc, char *argv[]){
-	struct sockaddr_in server;
-	struct stat obj;
+	//struct sockaddr_in server;
+	//struct stat obj;
 	int sock,sock1;
 	char bufmsg[MAXLINE];
 	int port;
-	char ip[MAXLINE];
+	//char ip[MAXLINE];
 	int result;
 	int pid_number;
 	char msg[MAXLINE];
@@ -47,7 +49,7 @@ int main(int argc, char *argv[]){
 		else{
 			recv(sock,msg,100,0);
 			recv(sock,&pid_number,100,0);
-			printf("%s\n",&msg);
+			printf("%s\n",msg);
 			printf("Numéro du PID : %d\n",pid_number);
 			//printf("%d - %d\n",sock, sock1);
 			while(1){
@@ -171,14 +173,14 @@ void TCP_Connect(int af, char *servip, unsigned int port, int *sock)
 {
 	struct sockaddr_in servaddr;
 	if ((*sock = socket(af, SOCK_STREAM, 0)) < 0){
-		return -1;
+		//return -1;
 	}
 	bzero((char *)&servaddr, sizeof(servaddr));
 	servaddr.sin_family = af;
 	inet_pton(AF_INET, servip, &servaddr.sin_addr);
 	servaddr.sin_port = htons(port);
 	if(connect(*sock, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0){
-		return -1;
+		//return -1;
 	}
 	//return s; 
 }
@@ -188,11 +190,11 @@ void TCP_Connect(int af, char *servip, unsigned int port, int *sock)
 int File_put(int sock_msg,int sock_file){
 	char filename[MAXLINE];
 	int filehandle;
-	char buf[20];
+	//char buf[20];
 	struct stat obj;
 	int size;
-	int value;
-	int status;
+	int value = 0;
+	int status = 0;
 
 	send(sock_msg, "put", 100,0);
 	Screen_print();
@@ -221,11 +223,11 @@ int File_put(int sock_msg,int sock_file){
 
 
 int File_get(int sock_msg,int sock_file){
-	char buf[50];
+	//char buf[50];
 	char filename[MAXLINE];
 	char temp[MAXLINE];
 	int size;
-	int value;
+	int value = 0;
 	char *f;
 	int filehandle;
 
@@ -314,7 +316,7 @@ int File_ls(int sock_msg, int sock_file){
 int File_cd(int sock_msg){
 	char buf[100];
 	char temp[20];
-	int value;
+	int value = 0;
 	int status;
 
 	send(sock_msg,"cd",100,0);
