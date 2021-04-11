@@ -42,7 +42,6 @@ int main(int argc, char *argv[]){
 		TCP_Connect(AF_INET, bufmsg, port, &sock);
 		TCP_Connect(AF_INET, bufmsg, port+1, &sock1);
 		if(sock == -1 && sock1 == -1){
-			//printf("FTP !!\n");
 			exit(1);
 		}
 		else{
@@ -52,7 +51,6 @@ int main(int argc, char *argv[]){
 			printf("Numéro du PID : %d\n",pid_number);
 			//printf("%d - %d\n",sock, sock1);
 			while(1){
-				//printf("Les commandes get, put, pwd, ls, cd, quit, client_cd, client_pwd, client_ls, help\n");
 				Message();
 				Screen_print();
 				scanf("%s",bufmsg);
@@ -62,7 +60,6 @@ int main(int argc, char *argv[]){
 					perror("send: ");
 				}
 				if(!strcmp(bufmsg,"get")){
-					//printf("Commande get \n");
 					result = File_get(sock, sock1);
 					if(result==-1){
 						printf("get La commande n'a pas pu être exécutée normalement.\n");
@@ -81,7 +78,6 @@ int main(int argc, char *argv[]){
 					}
 				}
 				else if(!strcmp(bufmsg,"pwd")){
-					//printf("Commande pwd\n");
 					result = File_pwd(sock, sock1);
 					if(result==-1){
 						printf("pwd La commande n'a pas pu être exécutée normalement.\n");
@@ -91,7 +87,6 @@ int main(int argc, char *argv[]){
 					}
 				}
 				else if(!strcmp(bufmsg,"ls")){
-					//printf("Commande ls \n");
 					result = File_ls(sock, sock1);
 					if(result==-1){
 						printf("ls La commande n'a pas pu être exécutée normalement.\n");
@@ -101,7 +96,6 @@ int main(int argc, char *argv[]){
 					}
 				}
 				else if(!strcmp(bufmsg,"cd")){
-					//printf("Commande cd\n");
 					result = File_cd(sock);
 					if(result==-1){
 						printf("cd La commande n'a pas pu être exécutée normalement.\n");
@@ -164,9 +158,9 @@ void Message(void)
     printf("\n");
     printf("\n\t\t  **-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**");
     printf("\n\t\t        =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
-    printf("\n\t\t        =   -get      -put    	-pwd       -ls      =");
-    printf("\n\t\t        =   -cd         -quit     -client_cd        =");
-    printf("\n\t\t        =   -client_pwd      -client_ls    -aide    =");
+    printf("\n\t\t        = get    put    pwd     ls     cd   quit    =");
+    printf("\n\t\t        = client_cd     client_pwd      client_ls   =");
+    printf("\n\t\t        =                  aide                     =");
     printf("\n\t\t        =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
     printf("\n\t\t  **-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**-**\n");
     printf("\n");
@@ -238,7 +232,7 @@ int File_get(int sock_msg,int sock_file){
 	send(sock_msg, "get", 100,0);
 	Screen_print();
 	scanf("%s",filename);
-	printf("%s\n",filename);
+	printf("Fichier : %s\n",filename);
 	strcpy(temp,filename);
 	//Envoyer le nom du fichier
 	send(sock_msg, temp, 50, 0);
@@ -307,7 +301,6 @@ int File_ls(int sock_msg, int sock_file){
 	recv(sock_msg,&size,sizeof(int),0);
 	f = malloc(size);
 	value = recv(sock_file,f,size,0);
-	printf("Taille : %d octets\n",size);
 	filehandle = open("ls.txt",O_RDWR | O_CREAT ,0666);
 	write(filehandle, f, size);
 	close(filehandle);
@@ -362,7 +355,6 @@ int Client_cd(){
 	int result;
 	char input[100];
 	strcpy(input,"cd ");
-	printf("Entrez le nom du nouveau répertoire\n");
 	Screen_print();
 	scanf("%s", input + 3);
 	if(chdir(input + 3) == 0){
@@ -376,7 +368,8 @@ int Client_cd(){
 
 
 void Screen_print(){
-	printf("cmd>");
+	printf("client> ");
+	//printf("cmd>");
 }
 	
 
@@ -390,14 +383,14 @@ int Client_ls(){
 
 
 void Help(){
-	printf ("Usage:: 	\nEX: get filename.extension");
-	printf ("<get> 		  Télécharge un fichier du serveur vers le client. \n");
-	printf ("<put> 		  Télécharge un fichier du client vers le serveur. \n");
-	printf ("<pwd> 		  Montre le chemin vers le serveur. \n");
-	printf ("<ls> 		  Affiche une liste de fichiers sur le serveur. \n");
-	printf ("<cd> 		  Déplace le chemin vers le serveur. \n");
-	printf ("<quit> 	  Arrête le serveur. \n");
-	printf ("<client_cd>  Déplace le chemin du client. \n");
-	printf ("<client_pwd> Montre le chemin du client. \n");
-	printf ("<client_ls>  Affiche une liste de fichiers sur le client. \n");
+	printf ("\033[1;33m Usage \tEX: get filename.extension\n");
+	printf ("\033[1;33m <get>\t\tTélécharge un fichier du serveur vers le client. \n");
+	printf ("\033[1;33m <put>\t\tTélécharge un fichier du client vers le serveur. \n");
+	printf ("\033[1;33m <pwd>\t\tMontre le chemin vers le serveur. \n");
+	printf ("\033[1;33m <ls>\t\tAffiche une liste de fichiers sur le serveur. \n");
+	printf ("\033[1;33m <cd>\t\tDéplace le chemin vers le serveur. \n");
+	printf ("\033[1;33m <quit>     \tArrête le serveur. \n");
+	printf ("\033[1;33m <client_cd>  \tDéplace le chemin du client. \n");
+	printf ("\033[1;33m <client_pwd> \tMontre le chemin du client. \n");
+	printf ("\033[1;33m <client_ls>  \tAffiche une liste de fichiers sur le client. \n");
 }
