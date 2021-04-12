@@ -11,9 +11,14 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <netdb.h>
+
+#define BACKLOG_SIZE 10
+#define MAX_PORT_SIZE 6
+#define MAX_HOST_NAME_SIZE 255
 
 
-int tcp_listen(int host, int port, int backlog);
+static int tcp_listen(char *server_ipaddr, char *server_port);
 int tcp_ls(int sock_msg, int sock_file);
 int tcp_get(int sock_msg, int sock_file);
 int tcp_put(int sock_msg, int sock_file);
@@ -36,16 +41,53 @@ struct sockaddr_in servaddr;
 int main(int argc, char *argv[]){
   struct sockaddr_in  client;
   int sock1, sock2, sock3, sock4;
-  int port1, port2, child;
+  char port1[MAX_PORT_SIZE], port2[MAX_PORT_SIZE];
+  int child;
   socklen_t len;
-  if(argc!=3){
-    fprintf(stderr, "USAGE %s <port1> <port2>\n", argv[0]);
-    return 0;
+  char c;
+  int fdmax = 0;
+  fd_set readfds;
+  fd_set writefds;
+  char host[MAX_HOST_NAME_SIZE];
+  while((c = getopt(argc, argv, "p:P:h:")) != -1) {
+    switch(c){
+      case 'p':
+         strncpy(port1, optarg, MAX_PORT_SIZE);
+        break;
+      case 'P':
+        strncpy(port2, optarg, MAX_PORT_SIZE);
+        break;
+      case 'h':
+        strncpy(host, optarg, MAX_HOST_NAME_SIZE);
+        break;
+      default:
+        break;
+      
+    }
   }
-  port1 = atoi(argv[1]);
-  port2 = atoi(argv[2]);
-  sock1 = tcp_listen(INADDR_ANY, port1,5);
-  sock2 = tcp_listen(INADDR_ANY, port2,6);
+  sock1 = tcp_listen(host, port1);
+  sock2 = tcp_listen(host, port2);
+  
+  while(1){
+    FD_ZERO(&readfds);
+    FD_ZERO(&writefds);
+    FD_SET(sock1, &readfds);
+    FD_SET(sock1, &writefds);
+    if(fdmax < sock1)
+      fdmax = sock1;
+    FD_SET(sock2, &readfds);
+    FD_SET(sock2, &writefds);
+    if(fdmax < sock2)
+      fdmax = sock2;
+    fprintf(stderr, "Waiting incomming connection (%d:%d:%d)\n", sock1, sock2, fdmax);
+    select(fdmax, &readfds, &writefds,NULL,NULL);
+    if(FD_ISSET(sock1, &readfds))
+      sock3 = accept(sock1, (struct sockaddr*)&client, &len);
+    if(FD_ISSET(sock2, &readfds))
+      sock4 = accept(sock2, (struct sockaddr*)&client, &len);
+    fprintf(stderr, "Accepted connection\n");
+  }
+/******************************************************************************/
   len = sizeof(client);
   while(1){
     sock3 = accept(sock1, (struct sockaddr*)&client, &len);
@@ -70,23 +112,46 @@ int main(int argc, char *argv[]){
   return 0;
 }
 
-int tcp_listen(int host, int port, int backlog){
-	int sd = 0;
-	sd = socket(AF_INET, SOCK_STREAM,0);
-	if(sd == -1){
-		perror("socket échec !!");
-		exit(1);
-	}
-	bzero((char *)&servaddr, sizeof(servaddr));
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = htonl(host);
-	servaddr.sin_port = htons(port);
-	if(bind(sd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0){
-		perror("Echec de liaison !!");
-		exit(1);
-	}
-	listen(sd,backlog);
-	return sd; 
+
+static int resolve_address(struct sockaddr *sa, socklen_t *salen, const char *host, 
+  const char *port, int family, int type, int proto){
+  struct addrinfo hints, *res;
+  int err;
+  memset(&hints,0, sizeof(hints));
+  hints.ai_family = family;
+  hints.ai_socktype = type;
+  hints.ai_protocol = proto;
+  hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE;
+  if((err = getaddrinfo(host, port, &hints, &res)) !=0 || res == NULL){
+     fprintf(stderr, "failed to resolve address :%s:%s\n", host, port);
+     return -1;
+  }
+  memcpy(sa, res->ai_addr, res->ai_addrlen);
+  *salen = res->ai_addrlen;
+  freeaddrinfo(res);
+  return 0;
+}
+
+static int tcp_listen(char *server_ipaddr, char *server_port){
+  int sd = 0;
+  struct sockaddr server_addr;
+  socklen_t salen;
+  sd = socket(AF_INET, SOCK_STREAM,0);
+  if(sd == -1){
+    perror("socket échec !!");
+    exit(1);
+  }
+  if(resolve_address(&server_addr, &salen, server_ipaddr, server_port, 
+      AF_INET, SOCK_STREAM, IPPROTO_TCP)!= 0){
+      fprintf(stderr, "Erreur de configuration de sockaddr\n");
+      return -1;
+  }
+  if(bind(sd, &server_addr, salen) < 0){
+    perror("Echec de liaison !!");
+    return -1;
+  }
+  listen(sd,BACKLOG_SIZE);
+  return sd; 
 }
 
 

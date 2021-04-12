@@ -6,13 +6,17 @@
 #include <sys/sendfile.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
 
 
 #define MAXLINE 200
+#define MAX_PORT_SIZE 6
+#define MAX_HOST_NAME_SIZE 255
 
-void TCP_Connect(int af, char *servip, unsigned int port, int *sock);
+static int TCP_Connect(int af, char *server_ipaddr, char *server_port);
 int File_put(int sock_msg, int sock_file);
 int File_get(int sock_msg, int sock_file);
 int File_ls(int sock_msg, int sock_file);
@@ -30,27 +34,30 @@ void Message(void);
 int main(int argc, char *argv[]){
   int sock,sock1;
   char bufmsg[MAXLINE];
-  int port1, port2;
+  char port1[MAX_PORT_SIZE], port2[MAX_PORT_SIZE];
   int result;
   int pid_number;
   char msg[MAXLINE];
+  char host[MAX_HOST_NAME_SIZE];
   char c;
-  while((c = getopt(argc, argv, "p:P:")) != -1) {
+  while((c = getopt(argc, argv, "p:P:h:")) != -1) {
     switch(c){
       case 'p':
-        port1 = atoi(optarg);
+         strncpy(port1, optarg, MAX_PORT_SIZE);
         break;
       case 'P':
-        port2 = atoi(optarg);
+        strncpy(port2, optarg, MAX_PORT_SIZE);
+        break;
+      case 'h':
+        strncpy(host, optarg, MAX_HOST_NAME_SIZE);
         break;
       default:
-        break;
-      
+        break;  
     }
   }
   while(1){
-    TCP_Connect(AF_INET, bufmsg, port1, &sock);
-    TCP_Connect(AF_INET, bufmsg, port2, &sock1);
+    sock =  TCP_Connect(AF_INET, host, port1);
+    sock1 = TCP_Connect(AF_INET, host, port2);
     if(sock == -1 && sock1 == -1)
       exit(1);
     else{
@@ -169,21 +176,43 @@ void Message(void)
     printf("\n");
 }
 
+static int resolve_address(struct sockaddr *sa, socklen_t *salen, const char *host, 
+  const char *port, int family, int type, int proto){
+  struct addrinfo hints, *res;
+  int err;
+  memset(&hints,0, sizeof(hints));
+  hints.ai_family = family;
+  hints.ai_socktype = type;
+  hints.ai_protocol = proto;
+  hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE;
+  if((err = getaddrinfo(host, port, &hints, &res)) !=0 || res == NULL){
+     fprintf(stderr, "failed to resolve address :%s:%s\n", host, port);
+     return -1;
+  }
+  memcpy(sa, res->ai_addr, res->ai_addrlen);
+  *salen = res->ai_addrlen;
+  freeaddrinfo(res);
+  return 0;
+}
 
-void TCP_Connect(int af, char *servip, unsigned int port, int *sock)
+static int TCP_Connect(int af, char *server_ipaddr, char *server_port)
 {
-	struct sockaddr_in servaddr;
-	if ((*sock = socket(af, SOCK_STREAM, 0)) < 0){
-		//return -1;
-	}
-	bzero((char *)&servaddr, sizeof(servaddr));
-	servaddr.sin_family = af;
-	inet_pton(AF_INET, servip, &servaddr.sin_addr);
-	servaddr.sin_port = htons(port);
-	if(connect(*sock, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0){
-		//return -1;
-	}
-	//return s; 
+  int ret, sd;
+  struct sockaddr server_addr;
+  socklen_t salen;
+  if ((sd = socket(af, SOCK_STREAM, 0)) < 0){
+    return sd;
+  }
+  if(resolve_address(&server_addr, &salen, server_ipaddr, server_port, 
+      AF_INET, SOCK_STREAM, IPPROTO_TCP)!= 0){
+      fprintf(stderr, "Erreur de configuration de sockaddr\n");
+      return -1;
+  }
+  if((ret = connect(sd, &server_addr, salen) ) < 0){
+    fprintf(stderr, "Ici haha (%d) (%s:%s)\n", ret, strerror(errno), server_port);
+    return ret;
+  }
+  return sd;
 }
 
 
