@@ -1,11 +1,12 @@
 ### Compile file 
-	gcc server.c -o server
-	gcc client.c -o client 
-
+```
+$ make
+```
 ### Run server 
-	./server 
-	Entrer le numéro du port <Port>
-
+```
+$ ./server -p <port1> -P <port2> -h <server_name>
+```
 ### Run client 
-	./client 
-	Entrer le numéro du port <Port>
+```
+$ ./client -p <port1> -P <port2> -h <server_name>
+```
