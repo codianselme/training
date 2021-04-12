@@ -11,7 +11,7 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <sys/wait.h>
-#include <netdb.h>
+#include "utils.h"
 
 #define BACKLOG_SIZE 10
 #define MAX_PORT_SIZE 6
@@ -109,26 +109,6 @@ int main(int argc, char *argv[]){
       main_select(sock3,sock4);
     }
   }
-  return 0;
-}
-
-
-static int resolve_address(struct sockaddr *sa, socklen_t *salen, const char *host, 
-  const char *port, int family, int type, int proto){
-  struct addrinfo hints, *res;
-  int err;
-  memset(&hints,0, sizeof(hints));
-  hints.ai_family = family;
-  hints.ai_socktype = type;
-  hints.ai_protocol = proto;
-  hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE;
-  if((err = getaddrinfo(host, port, &hints, &res)) !=0 || res == NULL){
-     fprintf(stderr, "failed to resolve address :%s:%s\n", host, port);
-     return -1;
-  }
-  memcpy(sa, res->ai_addr, res->ai_addrlen);
-  *salen = res->ai_addrlen;
-  freeaddrinfo(res);
   return 0;
 }
 
