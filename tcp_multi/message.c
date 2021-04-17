@@ -6,6 +6,10 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+
 #include "message.h"
 
 #define SL sizeof(long)
@@ -31,10 +35,12 @@ int msg_receive(int from, struct message *m){
   if(ret < 0)
     return (E_IO);
   memset(m, 0, sizeof(*m));
-  memcpy(&m->opcode,   buff+SL+SL, SL);
-  memcpy(&m->result,   buff+SL+SL+SL+SL+SL, SL);
-  memcpy(&m->params_len, buff+SL+SL+SL+SL+SL+SL, SL);
-  memcpy(&m->params,     buff+SL+SL+SL+SL+SL+SL+SL, m->params_len);
+  memcpy(&m->opcode,         buff, SL);
+  memcpy(&m->result,         buff+SL, SL);
+  memcpy(&m->params_len,     buff+SL+SL, SL);
+  memcpy(&m->result_str_len, buff+SL+SL+SL, SL);
+  memcpy(&m->params,         buff+SL+SL+SL+SL, m->params_len);
+  memcpy(&m->result_str,     buff+SL+SL+SL+SL+m->params_len, m->result_str_len);
   nb_bytes_recv += ret;
   log_data(recv_log, nb_bytes_recv, &recv_dataMB, &last_recv_time);
   free(buff);
@@ -43,11 +49,15 @@ int msg_receive(int from, struct message *m){
 
 int msg_send(int to, struct message *m){
   char *buff = malloc(sizeof(struct message));
-  memcpy(buff+SL+SL, &m->opcode, SL);
-  memcpy(buff+SL+SL+SL+SL+SL, &m->result, SL);
-  memcpy(buff+SL+SL+SL+SL+SL+SL, &m->params_len, SL);
-  memcpy(buff+SL+SL+SL+SL+SL+SL+SL, m->params, m->params_len);
+  memcpy(buff, &m->opcode, SL);
+  memcpy(buff+SL, &m->result, SL);
+  memcpy(buff+SL+SL, &m->params_len, SL);
+  memcpy(buff+SL+SL+SL, &m->result_str_len, SL);
+  memcpy(buff+SL+SL+SL+SL, m->params, m->params_len);
+  memcpy(buff+SL+SL+SL+SL+m->params_len, m->result_str, m->result_str_len);
+  
   int ret = send(to, buff, sizeof(struct message),0);
+  fprintf(stderr, "after\n");
   if(ret < 0)
     return E_IO;
   nb_bytes_sent += 2;
@@ -105,4 +115,34 @@ int print_sent_log(void){
   for(int i = 0; i < logger_iter; i++)
     ret += dprintf(sent_log, "%s", logger[i]);
   return ret;
+}
+
+int handle_msg(struct message *m_in, struct message *m_out, int data_sd){
+  int fd;
+  //char buffer[BUF_SIZE];
+  int ret = -1;
+  memset(m_out, 0, sizeof(struct message));
+  switch(m_in->opcode){
+    case GET:
+      fprintf(stderr, "params(%s)\n", m_in->params);
+      fd = open(m_in->params, O_RDONLY);
+      if(fd < 0){
+        fprintf(stderr, "Error when opening (%s)\n", m_in->params);
+        m_out->result = E_IO;
+        strcpy(m_out->result_str, strerror(errno));
+        m_out->result_str_len = strlen(m_out->result_str);
+        return E_IO;
+      }
+      strcpy(m_out->result_str, strerror(errno));
+      m_out->result_str_len = strlen(m_out->result_str);
+      m_out->result = OK;
+      return fd;
+    default:
+      fprintf(stderr, "Unkown commande");
+      strcpy(m_out->result_str, "Server: Unkown command");
+      m_out->result_str_len = strlen("Server: Unkown command");
+      m_out->result = E_BAD_PARAM;
+      break;
+  }
+  return ret; 
 }

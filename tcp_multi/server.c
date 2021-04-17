@@ -11,7 +11,9 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <errno.h>
 #include "utils.h"
+#include "message.h"
 
 #define BACKLOG_SIZE 10
 #define MAX_PORT_SIZE 6
@@ -39,16 +41,20 @@ sigset_t mask;
 struct sockaddr_in servaddr;
 
 int main(int argc, char *argv[]){
-  struct sockaddr_in  client;
-  int sock1, sock2, sock3, sock4;
+  struct sockaddr  client1, client2;
+  int sock1, sock2, cmd_sd = -1, data_sd = -1;
   char port1[MAX_PORT_SIZE], port2[MAX_PORT_SIZE];
   int child;
   socklen_t len;
   char c;
-  int fdmax = 0;
+  int data_fd, ret;
+  /*int fdmax = 0;
   fd_set readfds;
-  fd_set writefds;
+  fd_set writefds;*/
   char host[MAX_HOST_NAME_SIZE];
+  int should_send_cmd, should_send_data;
+  char buffer[BUF_SIZE];
+  struct message m_in, m_out;
   while((c = getopt(argc, argv, "p:P:h:")) != -1) {
     switch(c){
       case 'p':
@@ -69,46 +75,80 @@ int main(int argc, char *argv[]){
   sock2 = tcp_listen(host, port2);
   
   while(1){
-    FD_ZERO(&readfds);
-    FD_ZERO(&writefds);
-    FD_SET(sock1, &readfds);
-    FD_SET(sock1, &writefds);
-    if(fdmax < sock1)
-      fdmax = sock1;
-    FD_SET(sock2, &readfds);
-    FD_SET(sock2, &writefds);
-    if(fdmax < sock2)
-      fdmax = sock2;
-    fprintf(stderr, "Waiting incomming connection (%d:%d:%d)\n", sock1, sock2, fdmax);
-    select(fdmax, &readfds, &writefds,NULL,NULL);
-    if(FD_ISSET(sock1, &readfds))
-      sock3 = accept(sock1, (struct sockaddr*)&client, &len);
-    if(FD_ISSET(sock2, &readfds))
-      sock4 = accept(sock2, (struct sockaddr*)&client, &len);
-    fprintf(stderr, "Accepted connection\n");
+    
+    cmd_sd = accept(sock1, (struct sockaddr*)&client1, &len);
+    data_sd = accept(sock2, (struct sockaddr*)&client2, &len);
+    if(cmd_sd < 0 || data_sd < 0){
+      fprintf(stderr, "failed to accept incomming connection (%s)\n", strerror(errno));
+      exit(1);
+    }
+    if(cmd_sd>0 && data_sd>0){
+       child = fork();
+       if(child < 0){
+         exit(1);
+       }
+       if(child == 0){
+         fd_set creadfds;
+         fd_set cwritefds;
+         int cfdmax = MAX(cmd_sd, data_sd);
+         fcntl(cmd_sd, F_SETFL, O_NONBLOCK );
+         fcntl(data_sd, F_SETFL, O_NONBLOCK );
+         while(1){
+           FD_ZERO(&creadfds);
+           FD_ZERO(&cwritefds);
+           FD_SET(data_sd, &creadfds);
+           FD_SET(data_sd, &cwritefds);
+           FD_SET(cmd_sd, &creadfds);
+           FD_SET(cmd_sd, &cwritefds);
+           ret = select(cfdmax+1, &creadfds, &cwritefds,NULL,NULL);
+           //fprintf(stderr, "got request (%d:%d:%d)\n", ret,cmd_sd, data_sd);
+           if(FD_ISSET(cmd_sd, &creadfds)){
+             msg_receive(cmd_sd, &m_in);
+             data_fd = handle_msg(&m_in, &m_out, data_sd);
+             should_send_cmd = 1;
+             if(data_fd > 0)
+               should_send_data = 1;
+             FD_CLR(cmd_sd, &creadfds);
+             //fprintf(stderr, "server read cmd %d:%d\n", ret, data_fd);
+             
+           }
+           if(FD_ISSET(cmd_sd, &cwritefds)){
+             if(should_send_cmd){
+               //fprintf(stderr, "server write cmd\n");
+               msg_send(cmd_sd, &m_out);
+               should_send_cmd = 0;
+             }
+             //fprintf(stderr, "server write cmd 2\n");
+             FD_CLR(cmd_sd, &cwritefds);
+           }
+           if(FD_ISSET(data_sd, &creadfds)){
+             //fprintf(stderr, "server read data\n");
+             /*msg_receive(cmd_sd, &m_in);
+             handle_msg(&m_in, &m_out, data_sd);
+             msg_send(cmd_sd, &m_out);*/
+             FD_CLR(data_sd, &creadfds);
+           }
+           static int data_sent = 0;
+           int ds;
+           if(FD_ISSET(data_sd, &cwritefds)){
+             if(should_send_data && (data_fd > 0)){
+               //fprintf(stderr, "server write data\n");
+               while((ret = read(data_fd, buffer, BUF_SIZE)) > 0){
+                 ds = send(data_sd, buffer, ret,0);
+                 data_sent += ds;
+                 fprintf(stderr, "%d:%d", data_sent, ds);
+               }
+               close(data_fd);
+               should_send_data = 0;
+             }
+             //fprintf(stderr, "server write data\n");
+             FD_CLR(data_sd, &cwritefds);
+           }
+         }
+       }
+    }
   }
 /******************************************************************************/
-  len = sizeof(client);
-  while(1){
-    sock3 = accept(sock1, (struct sockaddr*)&client, &len);
-    sock4 = accept(sock2, (struct sockaddr*)&client, &len);		
-    if(sock3 < 0)
-      continue;
-    num_user++;
-    pid1 = fork();
-    if(pid1 < 0){
-      printf("\n");
-      return -1;
-    }
-    else if(pid1 > 0){
-      send(sock3, "Protocol TCP", 100, 0);
-      child = getpid();
-      printf("\nN° du pid : %d\n",child);
-      send(sock3,&child,100,0);
-      printf("Utilisateur %d\n\n",num_user);
-      main_select(sock3,sock4);
-    }
-  }
   return 0;
 }
 

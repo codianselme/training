@@ -12,6 +12,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "utils.h"
+#include "message.h"
 
 
 #define MAXLINE 200
@@ -34,16 +35,13 @@ void Message(void);
 
 
 int main(int argc, char *argv[]){
-  int cmd_sd, data_sd, sock, sock1;
-  char bufmsg[MAXLINE];
+  int cmd_sd, data_sd, ret;
   char port1[MAX_PORT_SIZE], port2[MAX_PORT_SIZE];
-  int result;
-  int pid_number;
-  char msg[MAXLINE];
   char host[MAX_NAME_SIZE];
   char cmd[MAX_NAME_SIZE];
   char params [MAX_NAME_SIZE];
   char c;
+  struct message m_out, m_in; 
   /*int pwd = 0, lpwd = 0, ls = 0, lls = 0, cd = 0, lcd = 0;
   char upload_file[MAX_NAME_SIZE];
   char download_file[MAX_NAME_SIZE];
@@ -52,7 +50,9 @@ int main(int argc, char *argv[]){
   fd_set readfds;
   fd_set writefds;
   int fdmax;
-  char *input;
+  char *input = NULL;
+  char buffer[BUF_SIZE];
+  int should_send_cmd = 0, data_fd;
   /* Recupération des paramètres de configuration du client et du serveur*/
   while((c = getopt(argc, argv, "p:P:h:u:d:cCs:S:")) != -1) {
     switch(c){
@@ -96,6 +96,8 @@ int main(int argc, char *argv[]){
   /*
    * Echange avec le serveur et l'utilisateur de façon interactive
    */
+  fcntl(cmd_sd, F_SETFL, O_NONBLOCK );
+  fcntl(data_sd, F_SETFL, O_NONBLOCK );
   while(1){
     FD_ZERO(&readfds);
     FD_ZERO(&writefds);
@@ -104,125 +106,74 @@ int main(int argc, char *argv[]){
     FD_SET(data_sd, &readfds);
     FD_SET(data_sd, &writefds);
     FD_SET(0, &readfds);
-    input = readline(">");
-    select(fdmax, &readfds, &writefds,NULL,NULL);
-    if(FD_ISSET(cmd_sd, &writefds)){
-      if(*input){
+    ret = select(fdmax+1, &readfds, &writefds,NULL,NULL);
+    if(FD_ISSET(0, &readfds)){
+      input = readline(">");
+      if(input!=NULL){
         add_history(input);
         sscanf(input, "%s %s\n", cmd, params);
-        fprintf(stderr, "cmd(%s):params(%s)\n", cmd, params);
+        if(!strcmp(cmd, "get") || !strcmp(cmd, "GET")){
+          if(!strcmp(params, "")){
+            fprintf(stderr, "parametre obligatoire\n");
+          }
+          else{
+            data_fd = open(params, O_CREAT | O_WRONLY);
+            if(data_fd < 0){
+              fprintf(stderr, "Erreur I/O: %s\n", strerror(errno));
+              FD_CLR(0, &readfds);
+              continue;
+            }
+            m_out.opcode = GET;
+            m_out.params_len = strlen(params);
+            m_out.result_str_len = 0;
+            strcpy(m_out.params, params);
+            should_send_cmd = 1;
+            
+          }
+        } else{
+          fprintf(stderr, "commande inconnue\n");
+        }
         memset(cmd, 0, MAX_NAME_SIZE);
         memset(params, 0, MAX_NAME_SIZE);
         free(input);
-      }  
+      }
     }
+    if(FD_ISSET(cmd_sd, &readfds)){
+      fprintf(stderr, "able to read on cmd_sd\n");
+      msg_receive(cmd_sd, &m_in);
+      fprintf(stderr, "%s\n", m_in.result_str);
+      FD_CLR(cmd_sd, &readfds);
+    }
+    if(FD_ISSET(cmd_sd, &writefds)){
+      //fprintf(stderr, "able to write on cmd_sd\n");
+      if(should_send_cmd){
+        msg_send(cmd_sd, &m_out);
+        should_send_cmd = 0;
+      }
+      FD_CLR(cmd_sd, &writefds);
+    }
+    int val = 0;
+    if(FD_ISSET(data_sd, &readfds)){
+       fprintf(stderr, "able to read on data_sd\n");
+       do{
+         while((ret=recv(data_sd, buffer, BUF_SIZE,0)) < 0 && errno==EINTR );
+         if(ret < 0){
+           fprintf(stderr, "Erreur lors de la réception de données"
+               "%s (%d:%d)\n", strerror(errno), errno, val);
+         }
+         if(ret > 0)
+           val = write(data_fd, buffer, ret);
+       }while(ret>0);
+       FD_CLR(data_sd, &readfds);
+    }
+    
+    if(FD_ISSET(data_sd, &writefds)){
+       //fprintf(stderr, "able to write on data_sd\n");
+      /* while((ret=recv(data_sd, buffer, BUF_SIZE,0)) > 0 )
+         fprintf(stderr, "%s", buffer);
+       FD_CLR(data_sd, &writefds);*/
+    }    
   }
-/******************************************************************************/
-  while(1){
-    sock =  TCP_Connect(AF_INET, host, port1);
-    sock1 = TCP_Connect(AF_INET, host, port2);
-    if(sock == -1 && sock1 == -1)
-      exit(1);
-    else{
-      recv(sock,msg,100,0);
-      recv(sock,&pid_number,100,0);
-      printf("%s\n",msg);
-      printf("Numéro du PID : %d\n",pid_number);
-      //printf("%d - %d\n",sock, sock1);
-      while(1){
-        Message();
-        Screen_print();
-        scanf("%s",bufmsg);
-        if((send(sock,bufmsg,100,0)) < 0)
-          perror("send: ");
-        if(!strcmp(bufmsg,"get")){
-          result = File_get(sock, sock1);
-          if(result==-1){
-            printf("get La commande n'a pas pu être exécutée normalement.\n");
-          }
-	}
-	else if(!strcmp(bufmsg,"put")){
-	  result = File_put(sock, sock1);
-	  if(result==-1){
-	    printf("put La commande n'a pas pu être exécutée normalement.\n");
-	  }
-	  else{
-	    //printf("put J'ai exécuté la commande normalement.\n");
-	  }
-	}
-	else if(!strcmp(bufmsg,"pwd")){
-	  result = File_pwd(sock, sock1);
-	  if(result==-1){
-	    printf("pwd La commande n'a pas pu être exécutée normalement.\n");
-	  }
-	  else{
-						//printf("pwd La commande a été exécutée normalement.\n");
-					}
-				}
-				else if(!strcmp(bufmsg,"ls")){
-					result = File_ls(sock, sock1);
-					if(result==-1){
-						printf("ls La commande n'a pas pu être exécutée normalement.\n");
-					}
-					else{
-						//printf("ls La commande a été exécutée normalement.\n");
-					}
-				}
-				else if(!strcmp(bufmsg,"cd")){
-					result = File_cd(sock);
-					if(result==-1){
-						printf("cd La commande n'a pas pu être exécutée normalement.\n");
-					}
-					else{
-						//printf("cd J'ai exécuté la commande normalement.\n");
-					}
-				}
-				else if(!strcmp(bufmsg,"quit")){
-					Quit(sock);
-					if(result==-1){
-						printf("Échec de l'arrêt du server.\n");
-					}
-					else{
-						printf("Arrêt du serveur.\n");
-						exit(1);
-					}
-				}
-				else if(!strcmp(bufmsg,"client_cd")){
-					result = Client_cd();
-					if(result==-1){
-						printf("client_cd La commande n'a pas pu être exécutée normalement.\n");
-					}
-					else{
-						//printf("client_cd J'ai exécuté la commande normalement.\n");
-					}
-				}
-				else if(!strcmp(bufmsg,"client_pwd")){
-					result = Client_pwd();
-					if(result==-1){
-						printf("client_pwd La commande n'a pas pu être exécutée normalement.\n");
-					}
-					else{
-						//printf("client_pwd J'ai exécuté la commande normalement.\n");
-					}
-				}
-				else if(!strcmp(bufmsg,"client_ls")){
-					result = Client_ls();
-					if(result==-1){
-						printf("client_ls La commande n'a pas pu être exécutée normalement.\n");
-					}
-					else{
-						//printf("client_ls J'ai exécuté la commande normalement.\n");
-					}
-				}
-				else if(!strcmp(bufmsg,"aide")){
-					Help();
-				}
-				else{
-					printf("Veuillez saisir à nouveau\n");
-				}
-			}
-		}
-	}
 }
 
 
@@ -256,6 +207,7 @@ static int TCP_Connect(int af, char *server_ipaddr, char *server_port)
     fprintf(stderr, "Ici haha (%d) (%s:%s)\n", ret, strerror(errno), server_port);
     return ret;
   }
+  fprintf(stderr, "con ret %d:%s:%d\n", ret, server_port,sd);
   return sd;
 }
 
