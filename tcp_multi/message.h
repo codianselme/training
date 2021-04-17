@@ -36,7 +36,9 @@ struct message{
   long opcode;     /* requested operation */
   long result;     /* result of the operation */
   long params_len;   /* name len */
+  long result_str_len;
   char params[MAX_PATH];  /*name of the file being operated on */
+  char result_str[MAX_PATH];
 };
 
 int msg_receive(int from, struct message *m);
@@ -48,4 +50,5 @@ void init_params(int recv_log_, int sent_log_);
 int set_recv_data(int recv_data);
 int print_recv_log(void);
 int print_sent_log(void);
+int handle_msg(struct message *m_in, struct message *m_out, int data_sd);
 #endif
