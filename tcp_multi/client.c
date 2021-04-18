@@ -42,11 +42,6 @@ int main(int argc, char *argv[]){
   char params [MAX_NAME_SIZE];
   char c;
   struct message m_out, m_in; 
-  /*int pwd = 0, lpwd = 0, ls = 0, lls = 0, cd = 0, lcd = 0;
-  char upload_file[MAX_NAME_SIZE];
-  char download_file[MAX_NAME_SIZE];
-  char local_dir[MAX_NAME_SIZE];
-  char remote_dir[MAX_NAME_SIZE];*/
   fd_set readfds;
   fd_set writefds;
   int fdmax;
@@ -54,7 +49,7 @@ int main(int argc, char *argv[]){
   char buffer[BUF_SIZE];
   int should_send_cmd = 0, data_fd;
   /* Recupération des paramètres de configuration du client et du serveur*/
-  while((c = getopt(argc, argv, "p:P:h:u:d:cCs:S:")) != -1) {
+  while((c = getopt(argc, argv, "p:P:h:")) != -1) {
     switch(c){
       case 'p':
          strncpy(port1, optarg, MAX_PORT_SIZE);
@@ -65,18 +60,6 @@ int main(int argc, char *argv[]){
       case 'h':
         strncpy(host, optarg, MAX_NAME_SIZE);
         break;
-      /*case 'u': *put file*
-        strncpy(upload_file, optarg, MAX_NAME_SIZE);
-        break;
-      case 'd': *get file*
-        strncpy(download_file, optarg, MAX_NAME_SIZE);
-        break;
-      case 'c': *remote current directory*
-        pwd = 1;
-        break;
-      case 'C': * local current directory*
-        lpwd = 1;
-        break;*/
       default:
         break;  
     }
@@ -112,7 +95,9 @@ int main(int argc, char *argv[]){
       if(input!=NULL){
         add_history(input);
         sscanf(input, "%s %s\n", cmd, params);
+        
         if(!strcmp(cmd, "get") || !strcmp(cmd, "GET")){
+          /* Commande GET */
           if(!strcmp(params, "")){
             fprintf(stderr, "parametre obligatoire\n");
           }
@@ -131,6 +116,7 @@ int main(int argc, char *argv[]){
             
           }
         } else{
+          /* TODO  Commande PUT, etc*/
           fprintf(stderr, "commande inconnue\n");
         }
         memset(cmd, 0, MAX_NAME_SIZE);
@@ -139,14 +125,14 @@ int main(int argc, char *argv[]){
       }
     }
     if(FD_ISSET(cmd_sd, &readfds)){
-      fprintf(stderr, "able to read on cmd_sd\n");
       msg_receive(cmd_sd, &m_in);
+      /* TODO il faut vérifier que m_in est valide */
       fprintf(stderr, "%s\n", m_in.result_str);
       FD_CLR(cmd_sd, &readfds);
     }
     if(FD_ISSET(cmd_sd, &writefds)){
-      //fprintf(stderr, "able to write on cmd_sd\n");
       if(should_send_cmd){
+        /* TODO il faut verifier que m_out est valide */
         msg_send(cmd_sd, &m_out);
         should_send_cmd = 0;
       }
@@ -154,24 +140,24 @@ int main(int argc, char *argv[]){
     }
     int val = 0;
     if(FD_ISSET(data_sd, &readfds)){
-       fprintf(stderr, "able to read on data_sd\n");
        do{
-         while((ret=recv(data_sd, buffer, BUF_SIZE,0)) < 0 && errno==EINTR );
+         while((ret=recv(data_sd, buffer, BUF_SIZE,0)) < 0 && (errno==EINTR) );
          if(ret < 0){
-           fprintf(stderr, "Erreur lors de la réception de données"
-               "%s (%d:%d)\n", strerror(errno), errno, val);
+           /* TODO il faut gérer */
          }
          if(ret > 0)
            val = write(data_fd, buffer, ret);
+         if(ret == 0){
+           fprintf(stderr, "Aucune donnée réçu %s (%d:%d)\n", strerror(errno), errno, val);
+           /* TODO il faut gérer */
+         }
        }while(ret>0);
        FD_CLR(data_sd, &readfds);
     }
     
     if(FD_ISSET(data_sd, &writefds)){
-       //fprintf(stderr, "able to write on data_sd\n");
-      /* while((ret=recv(data_sd, buffer, BUF_SIZE,0)) > 0 )
-         fprintf(stderr, "%s", buffer);
-       FD_CLR(data_sd, &writefds);*/
+       /* TODO il faut gérer */
+       FD_CLR(data_sd, &writefds);
     }    
   }
 }

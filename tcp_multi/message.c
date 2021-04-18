@@ -57,7 +57,7 @@ int msg_send(int to, struct message *m){
   memcpy(buff+SL+SL+SL+SL+m->params_len, m->result_str, m->result_str_len);
   
   int ret = send(to, buff, sizeof(struct message),0);
-  fprintf(stderr, "after\n");
+  fprintf(stderr, "%ld:%ld:%ld:%ld:%s:%s\n", m->opcode, m->result, m->params_len, m->result_str_len, m->params, m->result_str);
   if(ret < 0)
     return E_IO;
   nb_bytes_sent += 2;

@@ -7,9 +7,7 @@
 /*Definitions needed by clients and servers*/
 #define TRUE            1
 #define MAX_PATH      255 /*Maximum length of file name*/
-#define BUF_SIZE     1024 /* How much data to transfer at once*/
-#define SERVER_ADDR  "127.0.0.1" /* File server's network address*/
-#define SERVER_PORT  "4443"
+#define BUF_SIZE     8192 /* How much data to transfer at once*/
 #define E_BAD_OPCODE -1  /* Unknown operation requested*/
 #define E_BAD_PARAM -2   /* error in a parameter*/
 #define E_IO        -3   /* disk error or other I/O error*/
