@@ -111,19 +111,22 @@ int ptls_msg_receive(int from, struct message *m, ptls_t *tls){
     size_t consumed = input_size - input_off;
     ret = ptls_receive(tls, &plaintextbuf, buff + input_off, &consumed);
     input_off += consumed;
+    fprintf(stderr, "start of receive (%d) (%ld) (%ld)\n", ret, consumed, plaintextbuf.off);
   } while (ret == 0 && input_off < input_size);
-  assert(ret == 0);
+  assert(ret == 0 && (plaintextbuf.off == input_size));
   memset(m, 0, input_size);
-  memcpy(&m->opcode,         plaintextbuf.base, SL);
-  memcpy(&m->result,         plaintextbuf.base+SL, SL);
-  memcpy(&m->params_len,     plaintextbuf.base+SL+SL, SL);
+  memcpy(&m->opcode,         (struct message*)plaintextbuf.base, SL);
+  memcpy(&m->result,         (struct message*)plaintextbuf.base+SL, SL);
+  /*memcpy(&m->params_len,     plaintextbuf.base+SL+SL, SL);
   memcpy(&m->result_str_len, plaintextbuf.base+SL+SL+SL, SL);
   memcpy(&m->params,         plaintextbuf.base+SL+SL+SL+SL, m->params_len);
-  memcpy(&m->result_str,     plaintextbuf.base+SL+SL+SL+SL+m->params_len, m->result_str_len);
+  memcpy(&m->result_str,     plaintextbuf.base+SL+SL+SL+SL+m->params_len, m->result_str_len);*/
   nb_bytes_recv += plaintextbuf.off;
   log_data(recv_log, nb_bytes_recv, &recv_dataMB, &last_recv_time);
+  fprintf(stderr, "start of receive (%d) (%ld)\n", ret, m->opcode);
   free(buff);
   ptls_buffer_dispose(&plaintextbuf);
+  fprintf(stderr, "end of receive\n");
   return OK;
 }
 

@@ -237,7 +237,7 @@ int main(int argc, char *argv[]){
            ret = select(cfdmax+1, &creadfds, &cwritefds,NULL,NULL);
            /* Le serveur vient de recevoir une commande d'un client */
            if(FD_ISSET(cmd_sd, &creadfds)){
-             if(cmd_state == IN_HANDSHAKE){
+             if(!ptls_handshake_is_complete(cmd_tls)){
                size_t off = 0, leftlen;
                while ((ioret = read(cmd_sd, cmd_rbuffer, sizeof(cmd_rbuffer))) == -1 && errno == EINTR)
                  ;
@@ -270,7 +270,7 @@ int main(int argc, char *argv[]){
                }
                continue;
              }
-             fprintf(stderr, "trying sending cmd: too early to be there\n");
+             fprintf(stderr, "trying receiving cmd: too early to be there\n");
              ptls_msg_receive(cmd_sd, &m_in, cmd_tls);
              data_fd = handle_msg(&m_in, &m_out, data_sd);
              should_send_cmd = 1;
@@ -311,7 +311,7 @@ int main(int argc, char *argv[]){
                /* Quelque chose de grave vient de se produire*/
              }
              while ((leftlen = ioret - off) != 0) {
-               if(data_state == IN_HANDSHAKE){
+               if(!ptls_handshake_is_complete(data_tls)){
                  if ((ret = ptls_handshake(data_tls, &data_encbuf, data_rbuffer + off, &leftlen, &hsprop)) == 0) {
                    data_state = IN_1RTT;
                    assert(ptls_is_server(data_tls) || 
