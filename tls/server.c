@@ -249,7 +249,7 @@ int main(int argc, char *argv[]){
                }
                while ((leftlen = ioret - off) != 0) {
                  if ((ret = ptls_handshake(cmd_tls, &cmd_encbuf, cmd_rbuffer + off, &leftlen, &hsprop)) == 0) {
-                   fprintf(stderr, "handshake ok haha\n");
+                   fprintf(stderr, "cmd_tls in handshake ok\n");
                    cmd_state = IN_1RTT;
                    assert(ptls_is_server(cmd_tls) || 
                      hsprop.client.early_data_acceptance != PTLS_EARLY_DATA_ACCEPTANCE_UNKNOWN);
@@ -271,7 +271,9 @@ int main(int argc, char *argv[]){
                continue;
              }
              fprintf(stderr, "trying receiving cmd: too early to be there\n");
-             ptls_msg_receive(cmd_sd, &m_in, cmd_tls);
+             ret = ptls_msg_receive(cmd_sd, &m_in, cmd_tls);
+             if( ret < 0)
+               fprintf(stderr, "receiving E/IO: %d\n", ret);
              data_fd = handle_msg(&m_in, &m_out, data_sd);
              should_send_cmd = 1;
              if(data_fd > 0)
@@ -302,6 +304,7 @@ int main(int argc, char *argv[]){
            /* le serveur a reçu des donnée du client */
            if(FD_ISSET(data_sd, &creadfds)){
                           size_t off = 0, leftlen;
+             if(!ptls_handshake_is_complete(data_tls)){
              while ((ioret = read(data_sd, data_rbuffer, sizeof(data_rbuffer))) == -1 && errno == EINTR)
                ;
              if (ioret == -1 && (errno == EWOULDBLOCK || errno == EAGAIN)) {
@@ -311,7 +314,6 @@ int main(int argc, char *argv[]){
                /* Quelque chose de grave vient de se produire*/
              }
              while ((leftlen = ioret - off) != 0) {
-               if(!ptls_handshake_is_complete(data_tls)){
                  if ((ret = ptls_handshake(data_tls, &data_encbuf, data_rbuffer + off, &leftlen, &hsprop)) == 0) {
                    data_state = IN_1RTT;
                    assert(ptls_is_server(data_tls) || 
@@ -321,7 +323,7 @@ int main(int argc, char *argv[]){
                      shift_buffer(&ptbuf, early_bytes_sent);*/
                    /*if (request_key_update)
                      ptls_update_key(tls, 1);*/
-                     fprintf(stderr, "in handshake haha\n");
+                     fprintf(stderr, "data_tls in handshake ok\n");
                  } else if (ret == PTLS_ERROR_IN_PROGRESS) {
                      /* ok */
                  } else {
@@ -329,8 +331,10 @@ int main(int argc, char *argv[]){
                      (void)write(data_sd, data_encbuf.base, data_encbuf.off);
                    fprintf(stderr, "ptls_handshake:%d\n", ret);
                  }
+                 off += leftlen;
                }
-               off += leftlen;
+               continue;
+               
              }
              /* TODO */ 
              FD_CLR(data_sd, &creadfds);

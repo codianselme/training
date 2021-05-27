@@ -59,7 +59,7 @@ int msg_send(int to, struct message *m){
   memcpy(buff+SL+SL+SL+SL+m->params_len, m->result_str, m->result_str_len);
   
   int ret = send(to, buff, sizeof(struct message),0);
-  fprintf(stderr, "%ld:%ld:%ld:%ld:%s:%s\n", m->opcode, m->result, m->params_len, m->result_str_len, m->params, m->result_str);
+  fprintf(stderr, "old send: %ld:%ld:%ld:%ld:%s:%s\n", m->opcode, m->result, m->params_len, m->result_str_len, m->params, m->result_str);
   if(ret < 0)
     return E_IO;
   nb_bytes_sent += 2;
@@ -84,7 +84,7 @@ int ptls_msg_send(int to, struct message *m, ptls_t *tls){
   //send_fully(to, sendbuf.base, sendbuf.off);
   
   ret = send(to, sendbuf.base, sendbuf.off,0);
-  fprintf(stderr, "%ld:%ld:%ld:%ld:%s:%s\n", m->opcode, m->result, m->params_len, m->result_str_len, m->params, m->result_str);
+  fprintf(stderr, "sending: %ld:%ld:%ld:%ld:%s:%s:%ld:%ld\n", m->opcode, m->result, m->params_len, m->result_str_len, m->params, m->result_str, sendbuf.off, sizeof(struct message));
   assert(ret == sendbuf.off);
   if(ret < 0)
     return E_IO;
@@ -97,37 +97,38 @@ int ptls_msg_send(int to, struct message *m, ptls_t *tls){
 
 
 int ptls_msg_receive(int from, struct message *m, ptls_t *tls){
-  int ret;
+  int ioret, ret;
   size_t input_off = 0, input_size = sizeof(struct message);
   ptls_buffer_t plaintextbuf;
   uint8_t *buff = malloc(input_size);
-  ret = recv(from, buff, input_size, 0);
-  if(ret < 0)
+  memset(m, 0, sizeof(struct message));
+  ioret = recv(from, buff, TLS_RECORD_SIZE, 0);
+  if(ioret < 0)
     return (E_IO);
-  if (ret == 0)
+  if (ioret == 0)
     return 0;
   ptls_buffer_init(&plaintextbuf, "", 0);
   do{
-    size_t consumed = input_size - input_off;
+    size_t consumed = ioret - input_off;
     ret = ptls_receive(tls, &plaintextbuf, buff + input_off, &consumed);
     input_off += consumed;
-    fprintf(stderr, "start of receive (%d) (%ld) (%ld)\n", ret, consumed, plaintextbuf.off);
+    fprintf(stderr, "start of receive (%d) (%d) (%ld) (%ld)\n", ioret, ret, consumed, plaintextbuf.off);
   } while (ret == 0 && input_off < input_size);
-  assert(ret == 0 && (plaintextbuf.off == input_size));
+  assert(ret == 0);
   memset(m, 0, input_size);
   memcpy(&m->opcode,         (struct message*)plaintextbuf.base, SL);
   memcpy(&m->result,         (struct message*)plaintextbuf.base+SL, SL);
-  /*memcpy(&m->params_len,     plaintextbuf.base+SL+SL, SL);
+  memcpy(&m->params_len,     plaintextbuf.base+SL+SL, SL);
   memcpy(&m->result_str_len, plaintextbuf.base+SL+SL+SL, SL);
   memcpy(&m->params,         plaintextbuf.base+SL+SL+SL+SL, m->params_len);
-  memcpy(&m->result_str,     plaintextbuf.base+SL+SL+SL+SL+m->params_len, m->result_str_len);*/
+  memcpy(&m->result_str,     plaintextbuf.base+SL+SL+SL+SL+m->params_len, m->result_str_len);
   nb_bytes_recv += plaintextbuf.off;
   log_data(recv_log, nb_bytes_recv, &recv_dataMB, &last_recv_time);
   fprintf(stderr, "start of receive (%d) (%ld)\n", ret, m->opcode);
   free(buff);
   ptls_buffer_dispose(&plaintextbuf);
   fprintf(stderr, "end of receive\n");
-  return OK;
+  return input_off;
 }
 
 double gettime_ms(void){

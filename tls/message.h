@@ -11,6 +11,7 @@
 #define E_BAD_OPCODE -1  /* Unknown operation requested*/
 #define E_BAD_PARAM -2   /* error in a parameter*/
 #define E_IO        -3   /* disk error or other I/O error*/
+#define TLS_RECORD_SIZE 16384
 
 /* definitions of the allowed operations*/
 enum{

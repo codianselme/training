@@ -182,7 +182,7 @@ int main(int argc, char *argv[]){
         }
         while ((leftlen = ioret - off) != 0) {
           if ((ret = ptls_handshake(cmd_tls, &cmd_encbuf, cmd_rbuffer + off, &leftlen, &cmd_hsprop)) == 0) {
-            fprintf(stderr, "handshake ok haha\n");
+            fprintf(stderr, "cmd_tls handshake ok\n");
             cmd_state = IN_1RTT;
             assert(ptls_is_server(cmd_tls) || 
             cmd_hsprop.client.early_data_acceptance != PTLS_EARLY_DATA_ACCEPTANCE_UNKNOWN);
@@ -242,7 +242,7 @@ int main(int argc, char *argv[]){
         }
         while ((leftlen = ioret - off) != 0) {
           if ((ret = ptls_handshake(data_tls, &data_encbuf, data_rbuffer + off, &leftlen, &data_hsprop)) == 0) {
-            fprintf(stderr, "handshake ok haha\n");
+            fprintf(stderr, "data_tls handshake ok\n");
             cmd_state = IN_1RTT;
             assert(ptls_is_server(data_tls) || 
             data_hsprop.client.early_data_acceptance != PTLS_EARLY_DATA_ACCEPTANCE_UNKNOWN);
