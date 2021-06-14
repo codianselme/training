@@ -1,3 +1,9 @@
 [submodule "tls/picotls"]
 	path = tls/picotls
 	url = https://github.com/h2o/picotls.git
+[submodule "quic/picoquic"]
+	path = quic/picoquic
+	url = https://github.com/private-octopus/picoquic.git
+[submodule "quic/picotls"]
+	path = quic/picotls
+	url = https://github.com/h2o/picotls.git
